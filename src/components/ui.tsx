@@ -84,14 +84,14 @@ export function Button({
   type?: "button" | "submit"; disabled?: boolean; className?: string; title?: string;
 }) {
   const v = {
-    primary: "bg-accent text-white hover:opacity-90",
-    secondary: "border border-line bg-card hover:bg-paper",
+    primary: "btn-gradient",
+    secondary: "border border-line bg-card hover:border-accent/50",
     ghost: "text-muted hover:text-ink",
-    danger: "text-red-700 hover:bg-red-50",
+    danger: "text-danger hover:bg-danger/10",
   }[variant];
   return (
     <button type={type} onClick={onClick} disabled={disabled} title={title}
-      className={`inline-flex items-center justify-center gap-1.5 rounded-xl px-3.5 py-2 text-sm font-medium transition ${v} ${className}`}>
+      className={`inline-flex items-center justify-center gap-1.5 rounded-full px-4 py-2 text-sm font-semibold transition ${v} ${className}`}>
       {children}
     </button>
   );
@@ -111,8 +111,8 @@ export function ConfirmButton({ children, question, onConfirm, className = "" }:
 }
 
 export function LinkButton({ to, children, variant = "secondary" }: { to: string; children: ReactNode; variant?: "primary" | "secondary" }) {
-  const v = variant === "primary" ? "bg-accent text-white" : "border border-line bg-card hover:bg-paper";
-  return <Link to={to} className={`inline-flex items-center gap-1.5 rounded-xl px-3.5 py-2 text-sm font-medium ${v}`}>{children}</Link>;
+  const v = variant === "primary" ? "btn-gradient" : "border border-line bg-card hover:border-accent/50";
+  return <Link to={to} className={`inline-flex items-center gap-1.5 rounded-full px-4 py-2 text-sm font-semibold ${v}`}>{children}</Link>;
 }
 
 export function Empty({ children }: { children: ReactNode }) {
@@ -198,7 +198,7 @@ export function SwipeDeck<T extends { key: string }>({
       <div className="mt-5 flex items-center justify-center gap-4">
         <button onClick={() => commit("skip")} aria-label="Overslaan" className="grid size-14 place-items-center rounded-full border border-line bg-card text-2xl text-muted shadow-sm hover:text-ink">✕</button>
         <span className="text-xs text-muted tabular">{items.length} over</span>
-        <button onClick={() => commit("keep")} aria-label="Bewaren" className="grid size-14 place-items-center rounded-full bg-accent text-2xl text-white shadow-sm hover:opacity-90">♥</button>
+        <button onClick={() => commit("keep")} aria-label="Bewaren" className="btn-gradient grid size-14 place-items-center rounded-full text-2xl">♥</button>
       </div>
     </div>
   );

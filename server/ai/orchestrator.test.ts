@@ -96,3 +96,38 @@ describe("Orchestrator", () => {
     expect(a.calls.length).toBe(1);
   });
 });
+
+describe("Hook-generator", () => {
+  const req = {
+    creator: { name: "FitMetThies", brandVoice: "eerlijk", audience: "moeders", pillars: ["recepten"] },
+    item: { title: "Speculaas-tiramisu", format: "reel" as const, pillar: "recepten" as const },
+  };
+  function hookProvider(id: ProviderId, fail = false) {
+    const calls: string[] = [];
+    const p: AIProvider = {
+      id, label: id, model: `${id}-m`, configured: true, pricing: { inputPerMTok: 1, outputPerMTok: 10 },
+      async generateJSON({ schemaName }) {
+        calls.push(schemaName);
+        if (fail) throw new ProviderError("down", id, true);
+        return { data: { hooks: [{ hook: "h1", angle: "a" }], caption: "c", hashtags: ["#x"], notes: [] } as never, usage: { inputTokens: 500, outputTokens: 300 }, model: `${id}-m`, provider: id };
+      },
+    };
+    return { p, calls };
+  }
+  it("één aanroep, kosten geregistreerd, cache bij herhaling", async () => {
+    const a = hookProvider("anthropic");
+    const ledger = new Ledger(memoryStore<LedgerEntry[]>([]));
+    const o = new Orchestrator({ anthropic: a.p, openai: hookProvider("openai").p }, ledger, memoryStore<AIJob[]>([]), { monthlyBudgetUSD: 10, councilMonthlyLimit: 1, maxTokens: 2000 });
+    const r = await o.hooks(req);
+    expect(r.hooks[0].hook).toBe("h1");
+    expect(r.costUSD).toBeCloseTo(0.0035, 6);
+    expect(ledger.monthEntries()[0].step).toBe("hooks");
+    expect((await o.hooks(req)).cached).toBe(true);
+    expect(a.calls).toEqual(["hooks"]);
+  });
+  it("valt terug op de andere provider", async () => {
+    const o = new Orchestrator({ anthropic: hookProvider("anthropic", true).p, openai: hookProvider("openai").p },
+      new Ledger(memoryStore<LedgerEntry[]>([])), memoryStore<AIJob[]>([]), { monthlyBudgetUSD: 10, councilMonthlyLimit: 1, maxTokens: 2000 });
+    expect((await o.hooks(req)).model).toContain("openai");
+  });
+});

@@ -63,7 +63,7 @@ export function MonthGrid({
           const big = info?.events.some((e) => e.weight === 3);
           const cls = `relative flex ${compact ? "h-10" : "h-16 md:h-20"} flex-col items-center rounded-lg p-1 text-xs tabular ${
             selected === d ? "ring-2 ring-accent" : ""
-          } ${isToday ? "bg-ink text-paper" : big ? "bg-accent-soft" : info?.events.length ? "bg-plum-soft" : ""}`;
+          } ${isToday ? "bg-brand" : big ? "bg-accent-soft" : info?.events.length ? "bg-plum-soft" : ""}`;
           const inner = (
             <>
               <span className={isToday ? "font-semibold" : ""}>{Number(d.slice(8))}</span>

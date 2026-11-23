@@ -40,7 +40,7 @@ export default function MonthPlanPage() {
   const commit = () => {
     const ids = s.addContent(approved.map((p) => ({
       title: p.template.title, hook: p.template.hook, description: p.template.description,
-      pillar: p.template.pillar, format: p.template.format, status: "gepland" as const, date: p.date,
+      pillar: p.template.pillar, format: p.template.format, status: "idee" as const, date: p.date,
       eventKey: p.occurrence?.key, ideaTemplateId: p.template.id, productionMinutes: p.template.productionMinutes,
       needsNutritionCalc: p.template.needsNutritionCalc, source: "maandplanning" as const,
     })));
@@ -115,7 +115,7 @@ export default function MonthPlanPage() {
           <p className="mt-1 text-sm">Volgende stap: laat per item een script en shotlist uitwerken in de Content Studio (optioneel, kost AI-tegoed).</p>
           <div className="mt-3 flex gap-2">
             <Link to="/kalender" className="rounded-xl border border-line bg-card px-3.5 py-2 text-sm">Bekijk kalender</Link>
-            <Link to={`/studio?content=${done[0]}`} className="rounded-xl bg-accent px-3.5 py-2 text-sm text-white">Script maken voor het eerste item</Link>
+            <Link to={`/studio?content=${done[0]}`} className="btn-gradient rounded-full px-4 py-2 text-sm font-semibold">Script maken voor het eerste item</Link>
           </div>
         </Card>
       )}

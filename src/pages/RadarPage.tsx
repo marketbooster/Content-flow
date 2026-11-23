@@ -70,13 +70,13 @@ export default function RadarPage() {
         </div>
       )}
 
-      <Card className="mt-4 bg-ink text-paper border-ink">
+      <Card className="mt-4 bg-brand border-transparent shadow-soft">
         <div className="flex items-center justify-between gap-3">
           <div>
             <div className="font-semibold">Maak mijn maandplanning</div>
             <p className="text-sm opacity-80">Eén klik: momenten, pijlers en jouw tijd → een voorstel om te swipen.</p>
           </div>
-          <LinkButton to="/maandplanning" variant="primary">Start</LinkButton>
+          <Link to="/maandplanning" className="shrink-0 rounded-full bg-white px-4 py-2 text-sm font-semibold text-[#1a0e2e] shadow-sm">Start ✨</Link>
         </div>
       </Card>
 

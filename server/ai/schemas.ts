@@ -76,6 +76,26 @@ export const ReviewSchema = z.object({
 });
 export type Review = z.infer<typeof ReviewSchema>;
 
+export const HookRequestSchema = z.object({
+  creator: BriefSchema.shape.creator,
+  item: z.object({
+    title: z.string().min(2).max(300),
+    hook: z.string().max(500).optional(),
+    description: z.string().max(2000).optional(),
+    format: z.enum(FORMATS),
+    pillar: z.enum(PILLARS),
+  }),
+});
+export type HookRequest = z.infer<typeof HookRequestSchema>;
+
+export const HooksSchema = z.object({
+  hooks: z.array(z.object({ hook: z.string(), angle: z.string() })),
+  caption: z.string(),
+  hashtags: z.array(z.string()),
+  notes: z.array(z.string()),
+});
+export type Hooks = z.infer<typeof HooksSchema>;
+
 export const SynthesisSchema = z.object({
   proposal: ProposalSchema,
   changeLog: z.array(z.object({ change: z.string(), reason: z.string() })),

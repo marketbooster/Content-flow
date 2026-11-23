@@ -123,7 +123,7 @@ export function analyzeMix(
     }
     const daysLeft = diffDays(today, c.date);
     const needDays = Math.ceil((c.productionMinutes ?? 60) / 60); // ≥ 1 productiedag per uur werk
-    if ((c.status === "idee" || c.status === "gepland") && daysLeft >= 0 && daysLeft < needDays + 2) {
+    if ((c.status === "idee" || c.status === "script") && daysLeft >= 0 && daysLeft < needDays + 2) {
       signals.push({
         id: `krap:${c.id}`,
         kind: "te_laat",

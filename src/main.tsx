@@ -17,3 +17,10 @@ createRoot(document.getElementById("root")!).render(
     </Router>
   </StrictMode>,
 );
+
+// Installeerbare app: service worker alleen in de echte productieversie.
+if (import.meta.env.PROD && !import.meta.env.VITE_PREVIEW && "serviceWorker" in navigator) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("/sw.js").catch(() => { /* geen offline-modus; app werkt gewoon */ });
+  });
+}

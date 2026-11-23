@@ -7,8 +7,11 @@ import { costOf, Ledger, type Store } from "./ledger";
 import type { AIProvider, ProviderId } from "./providers/types";
 import { ProviderError } from "./providers/types";
 import {
-  type Brief, type Proposal, ProposalSchema, type Review, ReviewSchema, type Synthesis, SynthesisSchema,
+  type Brief, type HookRequest, type Hooks, HooksSchema, type Proposal, ProposalSchema, type Review, ReviewSchema,
+  type Synthesis, SynthesisSchema,
 } from "./schemas";
+
+export type HookResult = Hooks & { model: string; costUSD: number; cached?: boolean };
 
 export type AIMode = "fast" | "smart" | "council";
 
@@ -166,6 +169,46 @@ export class Orchestrator {
     return job;
   }
 
+  // ───────── Hook-generator: één goedkope aanroep ─────────
+  private hookCache = new Map<string, { at: number; result: HookResult }>();
+
+  async hooks(req: HookRequest, primary: ProviderId = "anthropic", signal?: AbortSignal): Promise<HookResult> {
+    const key = createHash("sha256").update(JSON.stringify({ req, primary })).digest("hex");
+    const hit = this.hookCache.get(key);
+    if (hit && Date.now() - hit.at < 24 * 3600_000) return { ...hit.result, cached: true };
+
+    const usable = ([primary, primary === "anthropic" ? "openai" : "anthropic"] as ProviderId[])
+      .filter((id) => this.providers[id].configured);
+    if (usable.length === 0) throw new BudgetError("Geen AI-provider geconfigureerd. Zet API-sleutels op de server.");
+    const spent = this.ledger.monthSpendUSD();
+    const worst = this.worstCase("fast", usable[0]);
+    if (spent + worst > this.cfg.monthlyBudgetUSD) {
+      throw new BudgetError(`Maandbudget AI bijna op: $${spent.toFixed(2)} van $${this.cfg.monthlyBudgetUSD} gebruikt.`);
+    }
+
+    const jobId = randomUUID();
+    const user = hookPrompt(req);
+    let lastErr: unknown;
+    for (const pid of usable) {
+      const p = this.providers[pid];
+      try {
+        const res = await p.generateJSON({ system: SYSTEM_HOOKS, user, schema: HooksSchema, schemaName: "hooks", maxTokens: 8000, signal });
+        const costUSD = p.pricing ? costOf(res.usage, p.pricing) : 0;
+        this.ledger.record({
+          at: new Date().toISOString(), jobId, step: "hooks", provider: pid, model: res.model,
+          inputTokens: res.usage.inputTokens, outputTokens: res.usage.outputTokens, costUSD,
+        });
+        const result: HookResult = { ...res.data, model: `${p.label} · ${res.model}`, costUSD: round(costUSD) };
+        this.hookCache.set(key, { at: Date.now(), result });
+        return result;
+      } catch (err) {
+        lastErr = err;
+        if (!(err instanceof ProviderError && err.retryableElsewhere)) break;
+      }
+    }
+    throw lastErr instanceof Error ? lastErr : new Error("Hooks genereren mislukt");
+  }
+
   // ───────── Snel & Slim ─────────
   private async runSingle(job: AIJob, mode: "fast" | "smart", usable: ProviderId[], signal?: AbortSignal) {
     let pid = usable[0];
@@ -289,6 +332,23 @@ ${SHARED_RULES}`;
 
 const SYSTEM_SYNTH = `Je bent de eindredacteur. Je combineert de sterkste elementen tot één verbeterd voorstel en verwerkt de reviewpunten. Leg elke wezenlijke wijziging vast in changeLog (wat en waarom). Los tegenstrijdigheden expliciet op of zet ze in openQuestions voor de creator. Twee modellen die het eens zijn, hebben niet automatisch gelijk.
 ${SHARED_RULES}`;
+
+const SYSTEM_HOOKS = `Je bent een scherpe short-form copywriter voor een Nederlandse creator. Je schrijft hooks voor de eerste 1–2 seconden van een video: kort (max. ±12 woorden), concreet, nieuwsgierig makend, in de merkstem. Lever 5 hooks met elk een andere invalshoek (bv. herkenning, tegenstelling, resultaat, vraag, humor), plus één caption met duidelijke call-to-action en 8–15 relevante Nederlandstalige en Engelstalige hashtags (zonder spaties, met #).
+${SHARED_RULES}
+- Geen clickbait die de video niet waarmaakt. Noem geen calorieën als feit.
+- Is dit een betaalde samenwerking, zet dan #ad of 'betaalde samenwerking' in de caption en noem dat in notes.`;
+
+function hookPrompt(r: HookRequest): string {
+  return [
+    `CREATOR: ${r.creator.name}`,
+    `MERKSTEM: ${r.creator.brandVoice}`,
+    `DOELGROEP: ${r.creator.audience}`,
+    `IDEE: ${r.item.title}`,
+    r.item.hook ? `HUIDIGE HOOK: ${r.item.hook}` : null,
+    r.item.description ? `OMSCHRIJVING: ${r.item.description}` : null,
+    `FORMAT: ${r.item.format} · PIJLER: ${r.item.pillar}`,
+  ].filter(Boolean).join("\n");
+}
 
 function briefPrompt(b: Brief): string {
   return [

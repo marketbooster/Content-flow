@@ -1,62 +1,115 @@
 @import "tailwindcss";
 
+/* FitMetThies-huisstijl (afgeleid van contentmetthies): inktpaars, paars verloop,
+   roze en zonnegeel als accent. Fraunces voor koppen, DM Sans voor tekst. */
 @theme {
-  --color-paper: #fbf7f2;
+  --color-paper: #fbfaff;
   --color-card: #ffffff;
-  --color-ink: #2a1f2d;
-  --color-muted: #75687a;
-  --color-line: #ece4dc;
-  --color-accent: #c2410c;
-  --color-accent-soft: #fdeee6;
-  --color-plum: #5b2a5e;
-  --color-plum-soft: #f3e8f4;
-  --color-ok: #2f7d4f;
-  --color-ok-soft: #e7f4ec;
+  --color-ink: #1a0e2e;
+  --color-muted: #6b6080;
+  --color-line: #ebe5f5;
+  --color-accent: #7c3aed;
+  --color-accent-soft: #f3eeff;
+  --color-plum: #be185d;
+  --color-plum-soft: #fdf0f7;
+  --color-sun: #fde68a;
+  --color-ok: #15803d;
+  --color-ok-soft: #e8f6ed;
   --color-warn: #a15c00;
   --color-warn-soft: #fdf3e1;
-  --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --color-danger: #b91c1c;
+  --font-sans: "DM Sans", "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-display: "Fraunces", ui-serif, Georgia, serif;
+}
+
+:root {
+  --gradient-brand: linear-gradient(135deg, #1a0e2e 0%, #4c1d95 55%, #7c3aed 100%);
+  --shadow-glow: 0 18px 50px -22px rgb(124 58 237 / 0.55);
+  --shadow-soft: 0 10px 30px -14px rgb(26 14 46 / 0.25);
 }
 
 /* Donker thema: volgt het systeem, tenzij expliciet licht gekozen; data-theme="dark" wint altijd. */
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --color-paper: #17121a;
-    --color-card: #221b26;
-    --color-ink: #f4eef6;
-    --color-muted: #b3a6b8;
-    --color-line: #372d3c;
-    --color-accent: #fb8a5c;
-    --color-accent-soft: #3a2218;
-    --color-plum: #e3b6e6;
-    --color-plum-soft: #34233a;
-    --color-ok: #7fd3a0;
-    --color-ok-soft: #1b3326;
+    --color-paper: #120a1f;
+    --color-card: #1d1330;
+    --color-ink: #f5f0ff;
+    --color-muted: #b4a8c8;
+    --color-line: #33284a;
+    --color-accent: #a78bfa;
+    --color-accent-soft: #2a1d47;
+    --color-plum: #f9a8d4;
+    --color-plum-soft: #3a1530;
+    --color-sun: #fde68a;
+    --color-ok: #86efac;
+    --color-ok-soft: #14301f;
     --color-warn: #f3b35b;
     --color-warn-soft: #3a2b14;
+    --color-danger: #fca5a5;
+    --gradient-brand: linear-gradient(135deg, #4c1d95 0%, #7c3aed 60%, #a78bfa 100%);
+    --shadow-soft: 0 10px 30px -14px rgb(0 0 0 / 0.6);
     color-scheme: dark;
   }
 }
 :root[data-theme="dark"] {
-  --color-paper: #17121a;
-  --color-card: #221b26;
-  --color-ink: #f4eef6;
-  --color-muted: #b3a6b8;
-  --color-line: #372d3c;
-  --color-accent: #fb8a5c;
-  --color-accent-soft: #3a2218;
-  --color-plum: #e3b6e6;
-  --color-plum-soft: #34233a;
-  --color-ok: #7fd3a0;
-  --color-ok-soft: #1b3326;
+  --color-paper: #120a1f;
+  --color-card: #1d1330;
+  --color-ink: #f5f0ff;
+  --color-muted: #b4a8c8;
+  --color-line: #33284a;
+  --color-accent: #a78bfa;
+  --color-accent-soft: #2a1d47;
+  --color-plum: #f9a8d4;
+  --color-plum-soft: #3a1530;
+  --color-sun: #fde68a;
+  --color-ok: #86efac;
+  --color-ok-soft: #14301f;
   --color-warn: #f3b35b;
   --color-warn-soft: #3a2b14;
+  --color-danger: #fca5a5;
+  --gradient-brand: linear-gradient(135deg, #4c1d95 0%, #7c3aed 60%, #a78bfa 100%);
+  --shadow-soft: 0 10px 30px -14px rgb(0 0 0 / 0.6);
   color-scheme: dark;
 }
 
 html, body { background: var(--color-paper); color: var(--color-ink); }
 body { font-family: var(--font-sans); -webkit-font-smoothing: antialiased; }
+h1, h2, h3 { font-family: var(--font-display); letter-spacing: -0.02em; text-wrap: balance; }
 button { cursor: pointer; }
 button:disabled { cursor: not-allowed; opacity: .5; }
 :focus-visible { outline: 2px solid var(--color-accent); outline-offset: 2px; border-radius: 6px; }
 .tabular { font-variant-numeric: tabular-nums; }
 .safe-bottom { padding-bottom: env(safe-area-inset-bottom, 0px); }
+
+@utility btn-gradient {
+  background: var(--gradient-brand);
+  color: white;
+  box-shadow: var(--shadow-glow);
+  transition: transform .15s ease, filter .15s ease;
+  &:hover { filter: brightness(1.08); transform: translateY(-1px); }
+  &:active { transform: translateY(0); }
+}
+@utility bg-brand { background: var(--gradient-brand); color: white; }
+@utility gradient-text {
+  background: var(--gradient-brand);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+@utility shadow-soft { box-shadow: var(--shadow-soft); }
+@utility tape {
+  display: inline-block;
+  padding: .2rem .6rem;
+  background: var(--color-sun);
+  color: #1a0e2e;
+  font-weight: 700;
+  font-size: .68rem;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  transform: rotate(-2deg);
+  box-shadow: 2px 2px 0 rgb(0 0 0 / .15);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { transition: none !important; animation: none !important; }
+}

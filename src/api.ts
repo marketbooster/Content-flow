@@ -53,7 +53,23 @@ async function json<T>(res: Response): Promise<T> {
   return body as T;
 }
 
+export interface HookResult {
+  hooks: { hook: string; angle: string }[];
+  caption: string;
+  hashtags: string[];
+  notes: string[];
+  model: string;
+  costUSD: number;
+  cached?: boolean;
+}
+
 export const api = {
+  hooks: (request: { creator: Brief["creator"]; item: { title: string; hook?: string; description?: string; format: ContentFormat; pillar: PillarId } }) =>
+    fetch("/api/ai/hooks", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ request }),
+    }).then((r) => json<HookResult>(r)),
   status: () => fetch("/api/ai/status").then((r) => json<AIStatus>(r)),
   jobs: () => fetch("/api/ai/jobs").then((r) => json<{ id: string; createdAt: string; mode: AIMode; status: string; title: string; totalCostUSD: number }[]>(r)),
   job: (id: string) => fetch(`/api/ai/jobs/${id}`).then((r) => json<AIJob>(r)),

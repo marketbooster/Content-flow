@@ -77,7 +77,7 @@ export default function ReviewPage() {
           <tbody>
             {job.steps.map((s, i) => (
               <tr key={i} className="border-t border-line">
-                <td className="p-2">{s.name}{s.error && <div className="text-red-700">{s.error}</div>}</td>
+                <td className="p-2">{s.name}{s.error && <div className="text-danger">{s.error}</div>}</td>
                 <td className="p-2">{LABEL[s.provider]} · {s.model}</td>
                 <td className="p-2 text-right">{s.inputTokens.toLocaleString("nl-NL")} / {s.outputTokens.toLocaleString("nl-NL")}</td>
                 <td className="p-2 text-right">${s.costUSD.toFixed(4)}</td>

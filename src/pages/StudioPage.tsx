@@ -145,7 +145,7 @@ export default function StudioPage() {
       <Button className="mt-4 w-full" onClick={run} disabled={!canRun || busy || task.trim().length < 5}>
         {busy ? (mode === "council" ? "Council overlegt… (kan 1–3 min duren)" : "Bezig…") : "Genereer voorstel"}
       </Button>
-      {error && <Card className="mt-3 border-red-300 bg-red-50 text-sm text-red-800">{error}</Card>}
+      {error && <Card className="mt-3 border-danger/40 bg-danger/10 text-sm text-danger">{error}</Card>}
 
       {job?.final && (
         <>

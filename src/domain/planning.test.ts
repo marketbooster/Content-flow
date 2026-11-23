@@ -55,7 +55,7 @@ describe("ideeën", () => {
     const [first, second] = all;
     const content: ContentItem[] = [{
       id: "c1", title: second.template.title, pillar: second.template.pillar, format: second.template.format,
-      status: "gepland", date: second.idealPublishDate, eventKey: o.key, ideaTemplateId: second.template.id,
+      status: "idee", date: second.idealPublishDate, eventKey: o.key, ideaTemplateId: second.template.id,
       createdAt: today, source: "seasonal",
     }];
     const rest = ideasFor(o, DEFAULT_CREATOR, [{ ideaKey: first.key, decision: "afgewezen", at: today }], content);
@@ -70,7 +70,7 @@ describe("ideeën", () => {
 
 describe("contentmix", () => {
   const item = (id: string, over: Partial<ContentItem>): ContentItem => ({
-    id, title: id, pillar: "recepten", format: "reel", status: "gepland", date: "2026-11-30",
+    id, title: id, pillar: "recepten", format: "reel", status: "idee", date: "2026-11-30",
     createdAt: today, source: "handmatig", ...over,
   });
   it("signaleert eenzijdig format en onbenutte kansen, zonder iets te wijzigen", () => {

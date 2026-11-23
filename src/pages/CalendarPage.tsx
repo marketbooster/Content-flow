@@ -1,8 +1,9 @@
 import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { MonthGrid } from "../components/MonthGrid";
+import { mondayOf, weekLabel, WeekView } from "../components/WeekView";
 import { Badge, Button, Card, Empty, PageHeader, PillarChip, ReliabilityBadge, SectionTitle, formatLabel } from "../components/ui";
-import { formatNL, monthName } from "../domain/dates";
+import { addDays, formatNL, monthName } from "../domain/dates";
 import { EVENT_TYPE_LABELS } from "../domain/events";
 import { relevanceFor } from "../domain/relevance";
 import type { EventType, ISODate } from "../domain/types";
@@ -17,6 +18,8 @@ export default function CalendarPage() {
   const [minRel, setMinRel] = useState(50);
   const [types, setTypes] = useState<Set<EventType>>(new Set(TYPE_FILTERS));
   const [selected, setSelected] = useState<ISODate>(s.today);
+  const [view, setView] = useState<"week" | "maand">("week");
+  const [monday, setMonday] = useState<ISODate>(mondayOf(s.today));
   const byId = useMemo(() => new Map(s.events.map((e) => [e.id, e])), [s.events]);
 
   const shift = (d: number) => setYm(({ y, m }) => {
@@ -34,14 +37,27 @@ export default function CalendarPage() {
   const addManual = () => {
     const title = draft?.trim();
     if (!title) return;
-    s.addContent([{ title, pillar: "afvallen", format: "reel", status: "gepland", date: selected, source: "handmatig" }]);
+    s.addContent([{ title, pillar: "afvallen", format: "reel", status: "idee", date: selected, source: "handmatig" }]);
     setDraft(null);
   };
 
   return (
     <>
-      <PageHeader kicker="Contentkalender" title={`${monthName(ym.m)} ${ym.y}`}
-        action={<div className="flex gap-1"><Button variant="secondary" onClick={() => shift(-1)} title="Vorige maand">‹</Button><Button variant="secondary" onClick={() => shift(1)} title="Volgende maand">›</Button></div>} />
+      <PageHeader kicker="Contentkalender" title={view === "week" ? weekLabel(monday) : `${monthName(ym.m)} ${ym.y}`}
+        action={<div className="flex gap-1">
+          <Button variant="secondary" onClick={() => (view === "week" ? setMonday(addDays(monday, -7)) : shift(-1))} title="Vorige">‹</Button>
+          <Button variant="secondary" onClick={() => (view === "week" ? setMonday(addDays(monday, 7)) : shift(1))} title="Volgende">›</Button>
+        </div>} />
+
+      <div className="mb-3 flex items-center gap-2">
+        <div className="inline-flex rounded-full border border-line bg-card p-1 text-sm" role="tablist">
+          {(["week", "maand"] as const).map((v) => (
+            <button key={v} role="tab" aria-selected={view === v} onClick={() => setView(v)}
+              className={`rounded-full px-3 py-1 ${view === v ? "btn-gradient" : "text-muted"}`}>{v === "week" ? "Week" : "Maand"}</button>
+          ))}
+        </div>
+        <Button variant="ghost" onClick={() => { setMonday(mondayOf(s.today)); setYm({ y: ty, m: tm }); setSelected(s.today); }}>Vandaag</Button>
+      </div>
 
       <details className="mb-3 rounded-2xl border border-line bg-card p-3 text-sm">
         <summary className="cursor-pointer font-medium">Filters · relevantie ≥ {minRel}% · {types.size} types</summary>
@@ -59,40 +75,49 @@ export default function CalendarPage() {
         </div>
       </details>
 
-      <Card>
-        <MonthGrid year={ym.y} month={ym.m} minRelevance={minRel} types={types} selected={selected} onSelect={setSelected} />
-      </Card>
+      {view === "week" ? (
+        <>
+          <WeekView monday={monday} minRelevance={minRel} types={types} />
+          <p className="mt-2 text-xs text-muted">Sleep een item naar een andere dag om het te verplaatsen. Op je telefoon: even vasthouden.</p>
+        </>
+      ) : (
+        <>
+        <Card>
+          <MonthGrid year={ym.y} month={ym.m} minRelevance={minRel} types={types} selected={selected} onSelect={setSelected} />
+        </Card>
 
-      <SectionTitle action={draft === null && <Button variant="ghost" onClick={() => setDraft("")}>+ Contentitem</Button>}>
-        {formatNL(selected, { weekday: true, year: true })}
-      </SectionTitle>
-      {draft !== null && (
-        <form className="mb-3 flex gap-2" onSubmit={(e) => { e.preventDefault(); addManual(); }}>
-          <input id="new-content-title" autoFocus value={draft} onChange={(e) => setDraft(e.target.value)} placeholder="Titel van het contentitem"
-            className="min-w-0 flex-1 rounded-xl border border-line bg-card px-3 py-2 text-sm" />
-          <Button type="submit" disabled={!draft.trim()}>Toevoegen</Button>
-          <Button variant="ghost" onClick={() => setDraft(null)}>Annuleer</Button>
-        </form>
+        <SectionTitle action={draft === null && <Button variant="ghost" onClick={() => setDraft("")}>+ Contentitem</Button>}>
+          {formatNL(selected, { weekday: true, year: true })}
+        </SectionTitle>
+        {draft !== null && (
+          <form className="mb-3 flex gap-2" onSubmit={(e) => { e.preventDefault(); addManual(); }}>
+            <input id="new-content-title" autoFocus value={draft} onChange={(e) => setDraft(e.target.value)} placeholder="Titel van het contentitem"
+              className="min-w-0 flex-1 rounded-xl border border-line bg-card px-3 py-2 text-sm" />
+            <Button type="submit" disabled={!draft.trim()}>Toevoegen</Button>
+            <Button variant="ghost" onClick={() => setDraft(null)}>Annuleer</Button>
+          </form>
+        )}
+        {dayEvents.length === 0 && dayContent.length === 0 && <Empty>Niets gepland en geen relevante momenten op deze dag.</Empty>}
+        <ul className="space-y-2">
+          {dayEvents.map(({ o, ev }) => (
+            <li key={o.key}>
+              <Link to={`/moment/${encodeURIComponent(o.key)}`} className="flex items-center justify-between rounded-2xl border border-line bg-card p-3">
+                <span className="font-medium">{ev.name}</span>
+                <span className="flex gap-1.5"><Badge>{EVENT_TYPE_LABELS[ev.type]}</Badge><ReliabilityBadge r={o.reliability} /></span>
+              </Link>
+            </li>
+          ))}
+          {dayContent.map((c) => (
+            <li key={c.id}>
+              <Link to={`/content/${c.id}`} className="flex items-center justify-between gap-2 rounded-2xl border border-ok/30 bg-ok-soft p-3">
+                <span className="font-medium">{c.title}</span>
+                <span className="flex shrink-0 gap-1.5"><Badge tone="accent">{formatLabel(c.format)}</Badge><PillarChip id={c.pillar} /></span>
+              </Link>
+            </li>
+          ))}
+        </ul>
+        </>
       )}
-      {dayEvents.length === 0 && dayContent.length === 0 && <Empty>Niets gepland en geen relevante momenten op deze dag.</Empty>}
-      <ul className="space-y-2">
-        {dayEvents.map(({ o, ev }) => (
-          <li key={o.key}>
-            <Link to={`/moment/${encodeURIComponent(o.key)}`} className="flex items-center justify-between rounded-2xl border border-line bg-card p-3">
-              <span className="font-medium">{ev.name}</span>
-              <span className="flex gap-1.5"><Badge>{EVENT_TYPE_LABELS[ev.type]}</Badge><ReliabilityBadge r={o.reliability} /></span>
-            </Link>
-          </li>
-        ))}
-        {dayContent.map((c) => (
-          <li key={c.id}>
-            <Link to={`/content/${c.id}`} className="flex items-center justify-between gap-2 rounded-2xl border border-ok/30 bg-ok-soft p-3">
-              <span className="font-medium">{c.title}</span>
-              <span className="flex shrink-0 gap-1.5"><Badge tone="accent">{formatLabel(c.format)}</Badge><PillarChip id={c.pillar} /></span>
-            </Link>
-          </li>
-        ))}
-      </ul>
     </>
   );
 }

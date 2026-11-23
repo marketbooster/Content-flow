@@ -137,7 +137,69 @@ export interface IdeaTemplate {
   commercial?: boolean;
 }
 
-export type ContentStatus = "idee" | "gepland" | "in_productie" | "klaar" | "gepubliceerd";
+/** Productiestatus (kolommen van het productiebord). De publicatiedatum staat los hiervan. */
+export type ContentStatus = "idee" | "script" | "gefilmd" | "bewerkt" | "gepubliceerd";
+
+export const CONTENT_STATUSES: { id: ContentStatus; label: string }[] = [
+  { id: "idee", label: "Idee" },
+  { id: "script", label: "Script" },
+  { id: "gefilmd", label: "Gefilmd" },
+  { id: "bewerkt", label: "Bewerkt" },
+  { id: "gepubliceerd", label: "Gepost" },
+];
+
+/** Waar iets gefilmd wordt; bepaalt de bundeling op een opnamedag. */
+export type ShootLocation = "keuken" | "sportschool" | "thuis" | "buiten" | "onderweg";
+
+export const SHOOT_LOCATIONS: { id: ShootLocation; label: string; emoji: string }[] = [
+  { id: "keuken", label: "Keuken", emoji: "🍳" },
+  { id: "thuis", label: "Thuis / woonkamer", emoji: "🛋️" },
+  { id: "sportschool", label: "Sportschool", emoji: "🏋️" },
+  { id: "buiten", label: "Buiten", emoji: "🌳" },
+  { id: "onderweg", label: "Onderweg / winkel", emoji: "🛒" },
+];
+
+export interface ShootDay {
+  id: string;
+  date: ISODate;
+  minutesAvailable: number;
+  contentIds: string[];
+  createdAt: string;
+}
+
+export type DealPlatform = "influentials" | "join" | "direct" | "anders";
+export type DealStatus =
+  | "aanbod" | "onderhandeling" | "akkoord" | "content_ingediend" | "live" | "gefactureerd" | "betaald" | "afgewezen";
+
+export const DEAL_STATUSES: { id: DealStatus; label: string }[] = [
+  { id: "aanbod", label: "Aanbod" },
+  { id: "onderhandeling", label: "Onderhandeling" },
+  { id: "akkoord", label: "Akkoord" },
+  { id: "content_ingediend", label: "Content ingediend" },
+  { id: "live", label: "Live" },
+  { id: "gefactureerd", label: "Gefactureerd" },
+  { id: "betaald", label: "Betaald" },
+  { id: "afgewezen", label: "Afgewezen" },
+];
+
+export interface Deal {
+  id: string;
+  brand: string;
+  platform: DealPlatform;
+  status: DealStatus;
+  feeEUR?: number;
+  deliverables: string;
+  /** Uiterste datum om content aan te leveren. */
+  contentDeadline?: ISODate;
+  /** Datum waarop de content live moet. */
+  liveDate?: ISODate;
+  /** Exclusiviteit: geen concurrerende merken in deze categorie tot en met `until`. */
+  exclusivity?: { category: string; until: ISODate };
+  category: string; // productcategorie, bv. "sportvoeding", "kleding"
+  notes: string;
+  link?: string;
+  createdAt: string;
+}
 
 /** Eén contentitem — de enige planningsbron. Seizoensideeën worden hieraan gekoppeld. */
 export interface ContentItem {
@@ -156,8 +218,12 @@ export interface ContentItem {
   script?: string;
   shotlist?: string[];
   needsNutritionCalc?: boolean;
+  location?: ShootLocation;
+  dealId?: string;
+  hooks?: string[];
+  hashtags?: string[];
   createdAt: string;
-  source: "handmatig" | "seasonal" | "maandplanning" | "ai";
+  source: "handmatig" | "seasonal" | "maandplanning" | "ai" | "deal";
 }
 
 export type SwipeDecision = "bewaard" | "afgewezen";

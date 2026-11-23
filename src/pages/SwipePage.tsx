@@ -31,7 +31,7 @@ export default function SwipePage() {
     <div className="mb-4 inline-flex rounded-xl border border-line bg-card p-1 text-sm">
       {(["seasonal", "bewaard"] as const).map((t) => (
         <button key={t} onClick={() => setParams(t === "bewaard" ? { tab: t } : selectedKey ? { moment: selectedKey } : {})}
-          className={`rounded-lg px-3 py-1.5 ${tab === t ? "bg-accent text-white" : "text-muted"}`}>
+          className={`rounded-full px-3 py-1.5 ${tab === t ? "btn-gradient" : "text-muted"}`}>
           {t === "seasonal" ? "Seasonal" : `Bewaard (${savedIdeas(s).length})`}
         </button>
       ))}
@@ -97,7 +97,7 @@ function SavedList() {
   const plan = (list: typeof items) =>
     s.addContent(list.map((i) => ({
       title: i.template.title, hook: i.template.hook, description: i.template.description,
-      pillar: i.template.pillar, format: i.template.format, status: "gepland" as const, date: dateFor(i),
+      pillar: i.template.pillar, format: i.template.format, status: "idee" as const, date: dateFor(i),
       eventKey: i.occ.key, ideaTemplateId: i.template.id, productionMinutes: i.template.productionMinutes,
       needsNutritionCalc: i.template.needsNutritionCalc, source: "seasonal" as const,
     })));
