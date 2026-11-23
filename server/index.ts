@@ -1,0 +1,79 @@
+// ContentFlow API-server. Alle AI-aanroepen gebeuren hier; API-sleutels komen nooit in de frontend.
+import { serve } from "@hono/node-server";
+import { serveStatic } from "@hono/node-server/serve-static";
+import { Hono } from "hono";
+import { z } from "zod";
+import { fileStore, Ledger, type LedgerEntry, RateLimiter } from "./ai/ledger";
+import { type AIJob, BudgetError, Orchestrator } from "./ai/orchestrator";
+import { createAnthropicProvider } from "./ai/providers/anthropic";
+import { createOpenAIProvider } from "./ai/providers/openai";
+import { BriefSchema } from "./ai/schemas";
+
+try {
+  process.loadEnvFile?.(".env");
+} catch {
+  /* geen .env: prima, dan draait de app zonder AI */
+}
+
+const env = process.env;
+const timeoutMs = Number(env.AI_TIMEOUT_MS) || 120_000;
+
+export function createApp(orchestrator: Orchestrator, limiter: RateLimiter) {
+  const app = new Hono();
+
+  app.get("/api/health", (c) => c.json({ ok: true }));
+  app.get("/api/ai/status", (c) => c.json(orchestrator.status()));
+  app.get("/api/ai/jobs", (c) => c.json(orchestrator.listJobs()));
+  app.get("/api/ai/jobs/:id", (c) => {
+    const job = orchestrator.getJob(c.req.param("id"));
+    return job ? c.json(job) : c.json({ error: "Niet gevonden" }, 404);
+  });
+
+  const GenerateBody = z.object({
+    mode: z.enum(["fast", "smart", "council"]),
+    primary: z.enum(["anthropic", "openai"]).default("anthropic"),
+    brief: BriefSchema,
+  });
+
+  app.post("/api/ai/generate", async (c) => {
+    const ip = c.req.header("x-forwarded-for")?.split(",")[0] ?? "local";
+    if (!limiter.allow(ip)) return c.json({ error: "Te veel verzoeken; probeer het over een minuut opnieuw." }, 429);
+    const parsed = GenerateBody.safeParse(await c.req.json().catch(() => null));
+    if (!parsed.success) return c.json({ error: "Ongeldige briefing", details: parsed.error.issues }, 400);
+    try {
+      const job: AIJob = await orchestrator.run(parsed.data.mode, parsed.data.brief, parsed.data.primary, c.req.raw.signal);
+      return c.json(job, job.status === "klaar" ? 200 : 502);
+    } catch (err) {
+      if (err instanceof BudgetError) return c.json({ error: err.message }, 402);
+      console.error(err);
+      return c.json({ error: "Onverwachte serverfout" }, 500);
+    }
+  });
+
+  return app;
+}
+
+const isMain = process.argv[1]?.endsWith("server/index.ts");
+if (isMain) {
+  const orchestrator = new Orchestrator(
+    {
+      anthropic: createAnthropicProvider(env, timeoutMs),
+      openai: createOpenAIProvider(env, timeoutMs),
+    },
+    new Ledger(fileStore<LedgerEntry[]>("data/ai-ledger.json", [])),
+    fileStore<AIJob[]>("data/ai-jobs.json", []),
+    {
+      monthlyBudgetUSD: Number(env.AI_MONTHLY_BUDGET_USD) || 25,
+      councilMonthlyLimit: Number(env.AI_COUNCIL_MONTHLY_LIMIT) || 40,
+      maxTokens: 16000,
+    },
+  );
+  const app = createApp(orchestrator, new RateLimiter(Number(env.AI_REQUESTS_PER_MINUTE) || 10));
+  if (env.NODE_ENV === "production") {
+    app.use("/*", serveStatic({ root: "./dist" }));
+    app.get("*", serveStatic({ path: "./dist/index.html" }));
+  }
+  const port = Number(env.PORT) || 8787;
+  serve({ fetch: app.fetch, port });
+  console.log(`ContentFlow API op http://localhost:${port}`);
+}
