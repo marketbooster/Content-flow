@@ -2,6 +2,9 @@
 import { serve } from "@hono/node-server";
 import { serveStatic } from "@hono/node-server/serve-static";
 import { Hono } from "hono";
+import { basicAuth } from "hono/basic-auth";
+import { createHash, timingSafeEqual } from "node:crypto";
+import { join } from "node:path";
 import { z } from "zod";
 import { fileStore, Ledger, type LedgerEntry, RateLimiter } from "./ai/ledger";
 import { type AIJob, BudgetError, Orchestrator } from "./ai/orchestrator";
@@ -18,10 +21,21 @@ try {
 const env = process.env;
 const timeoutMs = Number(env.AI_TIMEOUT_MS) || 120_000;
 
-export function createApp(orchestrator: Orchestrator, limiter: RateLimiter) {
+/** Vergelijkt wachtwoorden in constante tijd (geen timing-lek). */
+function samePassword(a: string, b: string): boolean {
+  const ha = createHash("sha256").update(a).digest();
+  const hb = createHash("sha256").update(b).digest();
+  return timingSafeEqual(ha, hb);
+}
+
+export function createApp(orchestrator: Orchestrator, limiter: RateLimiter, password?: string) {
   const app = new Hono();
 
+  // Health check blijft open (voor de hostingdienst); al het andere achter het wachtwoord.
   app.get("/api/health", (c) => c.json({ ok: true }));
+  if (password) {
+    app.use("*", basicAuth({ verifyUser: (_user, pass) => samePassword(pass, password), realm: "ContentFlow" }));
+  }
   app.get("/api/ai/status", (c) => c.json(orchestrator.status()));
   app.get("/api/ai/jobs", (c) => c.json(orchestrator.listJobs()));
   app.get("/api/ai/jobs/:id", (c) => {
@@ -55,21 +69,30 @@ export function createApp(orchestrator: Orchestrator, limiter: RateLimiter) {
 
 const isMain = process.argv[1]?.endsWith("server/index.ts");
 if (isMain) {
+  const production = env.NODE_ENV === "production";
+  const password = env.APP_PASSWORD?.trim();
+  // Online zonder wachtwoord zou iedereen met de link jouw API-tegoed kunnen gebruiken.
+  if (production && (!password || password.length < 12)) {
+    console.error("APP_PASSWORD ontbreekt of is korter dan 12 tekens. De server start niet zonder bescherming.");
+    process.exit(1);
+  }
+  // DATA_DIR: map op een blijvend volume, zodat kostenregistratie een herstart overleeft.
+  const dataDir = env.DATA_DIR || "data";
   const orchestrator = new Orchestrator(
     {
       anthropic: createAnthropicProvider(env, timeoutMs),
       openai: createOpenAIProvider(env, timeoutMs),
     },
-    new Ledger(fileStore<LedgerEntry[]>("data/ai-ledger.json", [])),
-    fileStore<AIJob[]>("data/ai-jobs.json", []),
+    new Ledger(fileStore<LedgerEntry[]>(join(dataDir, "ai-ledger.json"), [])),
+    fileStore<AIJob[]>(join(dataDir, "ai-jobs.json"), []),
     {
       monthlyBudgetUSD: Number(env.AI_MONTHLY_BUDGET_USD) || 25,
       councilMonthlyLimit: Number(env.AI_COUNCIL_MONTHLY_LIMIT) || 40,
       maxTokens: 16000,
     },
   );
-  const app = createApp(orchestrator, new RateLimiter(Number(env.AI_REQUESTS_PER_MINUTE) || 10));
-  if (env.NODE_ENV === "production") {
+  const app = createApp(orchestrator, new RateLimiter(Number(env.AI_REQUESTS_PER_MINUTE) || 10), password);
+  if (production) {
     app.use("/*", serveStatic({ root: "./dist" }));
     app.get("*", serveStatic({ path: "./dist/index.html" }));
   }

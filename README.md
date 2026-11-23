@@ -26,8 +26,10 @@ Analyse, ontwerp, kostenraming, fases, testscenario's en risico's staan in [`doc
 npm install
 cp .env.example .env     # optioneel: API-sleutels voor de AI Studio
 npm run dev              # web op http://localhost:5173, API op :8787
-npm test                 # 40 unit-tests
+npm test                 # 44 unit-tests
 ```
+
+Online zetten, met wachtwoord en AI: zie [`docs/ONLINE-ZETTEN.md`](docs/ONLINE-ZETTEN.md).
 
 Zonder API-sleutels werkt alles behalve de AI Studio: kalender, ideeën, swipen, meldingen en maandplanning.
 
