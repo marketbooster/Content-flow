@@ -50,6 +50,7 @@ export default function StudioPage() {
   useEffect(() => setTask(defaultTask), [defaultTask]);
 
   useEffect(() => {
+    if (import.meta.env.VITE_PREVIEW) return; // preview heeft geen server
     api.status().then(setStatus).catch((e: Error) => setStatusErr(e.message));
   }, [job]);
 
@@ -158,6 +159,13 @@ export default function StudioPage() {
 }
 
 function ProviderStatus({ status, error }: { status: AIStatus | null; error: string | null }) {
+  if (import.meta.env.VITE_PREVIEW) {
+    return (
+      <Card className="mt-3 border-warn/40 bg-warn-soft text-sm">
+        Dit is een preview zonder server: AI-generatie werkt hier niet. Je ziet hier de modi en de briefing. Om echt te genereren draai je ContentFlow zelf, met je eigen API-sleutels.
+      </Card>
+    );
+  }
   if (error) return <Card className="mt-3 text-sm text-muted">AI-server niet bereikbaar ({error}). Start de server met <code>npm run dev</code>.</Card>;
   if (!status) return null;
   const { budget } = status;

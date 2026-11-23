@@ -97,6 +97,19 @@ export function Button({
   );
 }
 
+/** Bevestiging in de pagina zelf (geen browser-pop-up). */
+export function ConfirmButton({ children, question, onConfirm, className = "" }: { children: ReactNode; question: string; onConfirm: () => void; className?: string }) {
+  const [asking, setAsking] = useState(false);
+  if (!asking) return <Button variant="danger" className={className} onClick={() => setAsking(true)}>{children}</Button>;
+  return (
+    <span className={`inline-flex flex-wrap items-center gap-2 text-sm ${className}`}>
+      <span>{question}</span>
+      <Button variant="danger" onClick={() => { setAsking(false); onConfirm(); }}>Ja, verwijder</Button>
+      <Button variant="ghost" onClick={() => setAsking(false)}>Annuleer</Button>
+    </span>
+  );
+}
+
 export function LinkButton({ to, children, variant = "secondary" }: { to: string; children: ReactNode; variant?: "primary" | "secondary" }) {
   const v = variant === "primary" ? "bg-accent text-white" : "border border-line bg-card hover:bg-paper";
   return <Link to={to} className={`inline-flex items-center gap-1.5 rounded-xl px-3.5 py-2 text-sm font-medium ${v}`}>{children}</Link>;

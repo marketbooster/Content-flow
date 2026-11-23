@@ -20,7 +20,7 @@ const NAV = [
 export default function App() {
   return (
     <div className="min-h-dvh pb-24 md:pb-0 md:pl-56">
-      <nav aria-label="Hoofdmenu" className="fixed bottom-0 inset-x-0 z-20 border-t border-line bg-card/95 backdrop-blur md:inset-y-0 md:right-auto md:w-56 md:border-t-0 md:border-r">
+      <nav aria-label="Hoofdmenu" className="safe-bottom fixed bottom-0 inset-x-0 z-20 border-t border-line bg-card/95 backdrop-blur md:inset-y-0 md:right-auto md:w-56 md:border-t-0 md:border-r">
         <div className="hidden md:block px-5 pt-6 pb-8">
           <div className="text-lg font-semibold tracking-tight">ContentFlow</div>
           <div className="text-xs text-muted">Seasonal Intelligence</div>

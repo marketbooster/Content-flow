@@ -30,10 +30,12 @@ export default function CalendarPage() {
     .filter(({ ev }) => types.has(ev.type) && relevanceFor(ev, s.creator).score >= minRel);
   const dayContent = s.content.filter((c) => c.date === selected);
 
+  const [draft, setDraft] = useState<string | null>(null);
   const addManual = () => {
-    const title = prompt("Titel van het contentitem");
+    const title = draft?.trim();
     if (!title) return;
     s.addContent([{ title, pillar: "afvallen", format: "reel", status: "gepland", date: selected, source: "handmatig" }]);
+    setDraft(null);
   };
 
   return (
@@ -61,9 +63,17 @@ export default function CalendarPage() {
         <MonthGrid year={ym.y} month={ym.m} minRelevance={minRel} types={types} selected={selected} onSelect={setSelected} />
       </Card>
 
-      <SectionTitle action={<Button variant="ghost" onClick={addManual}>+ Contentitem</Button>}>
+      <SectionTitle action={draft === null && <Button variant="ghost" onClick={() => setDraft("")}>+ Contentitem</Button>}>
         {formatNL(selected, { weekday: true, year: true })}
       </SectionTitle>
+      {draft !== null && (
+        <form className="mb-3 flex gap-2" onSubmit={(e) => { e.preventDefault(); addManual(); }}>
+          <input id="new-content-title" autoFocus value={draft} onChange={(e) => setDraft(e.target.value)} placeholder="Titel van het contentitem"
+            className="min-w-0 flex-1 rounded-xl border border-line bg-card px-3 py-2 text-sm" />
+          <Button type="submit" disabled={!draft.trim()}>Toevoegen</Button>
+          <Button variant="ghost" onClick={() => setDraft(null)}>Annuleer</Button>
+        </form>
+      )}
       {dayEvents.length === 0 && dayContent.length === 0 && <Empty>Niets gepland en geen relevante momenten op deze dag.</Empty>}
       <ul className="space-y-2">
         {dayEvents.map(({ o, ev }) => (

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Badge, Button, Card, PageHeader, SectionTitle } from "../components/ui";
+import { Badge, Button, Card, ConfirmButton, PageHeader, SectionTitle } from "../components/ui";
 import { formatNL } from "../domain/dates";
 import { PILLAR_LABELS } from "../domain/profile";
 import type { EventType, PillarId, SeasonalEvent } from "../domain/types";
@@ -92,7 +92,7 @@ export default function SettingsPage() {
       <SectionTitle>Gegevens</SectionTitle>
       <Card className="text-sm">
         <p className="text-muted">MVP: je planning wordt lokaal in deze browser bewaard. Geen account, geen cloud-opslag.</p>
-        <Button variant="danger" className="mt-2" onClick={() => { if (confirm("Alle planning, swipes en instellingen wissen?")) s.reset(); }}>Alles wissen</Button>
+        <ConfirmButton className="mt-2" question="Alle planning, swipes en instellingen wissen?" onConfirm={s.reset}>Alles wissen</ConfirmButton>
       </Card>
     </>
   );

@@ -1,5 +1,5 @@
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { Badge, Button, Card, Empty, LinkButton, PageHeader } from "../components/ui";
+import { Badge, Card, ConfirmButton, Empty, LinkButton, PageHeader } from "../components/ui";
 import { PILLAR_LABELS } from "../domain/profile";
 import type { ContentFormat, ContentStatus, PillarId } from "../domain/types";
 import { useStore } from "../state/store";
@@ -57,7 +57,7 @@ export default function ContentPage() {
       </Card>
       <div className="mt-4 flex flex-wrap gap-2">
         <LinkButton to={`/studio?content=${c.id}`} variant="primary">{c.script ? "Opnieuw uitwerken met AI" : "Script & shotlist met AI"}</LinkButton>
-        <Button variant="danger" onClick={() => { if (confirm("Contentitem verwijderen?")) { s.removeContent(c.id); navigate("/kalender"); } }}>Verwijderen</Button>
+        <ConfirmButton question="Dit item verwijderen?" onConfirm={() => { s.removeContent(c.id); navigate("/kalender"); }}>Verwijderen</ConfirmButton>
       </div>
     </>
   );
