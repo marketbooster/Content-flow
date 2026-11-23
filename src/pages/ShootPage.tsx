@@ -141,6 +141,9 @@ function ShootDayView({ id, onBack }: { id: string; onBack: () => void }) {
       <button onClick={onBack} className="text-sm text-muted">← Opnamedagen</button>
       <PageHeader kicker="Draaiboek" title={formatNL(day.date, { weekday: true })}
         sub={`${items.length} video's · ${done} gefilmd · ${ordered.length} locatie${ordered.length === 1 ? "" : "s"}`} />
+      <Link to={`/opnamemodus?dag=${day.id}`} className="btn-gradient mb-4 flex items-center justify-center gap-2 rounded-full px-5 py-3 text-base font-semibold">
+        🎬 Start opnamemodus
+      </Link>
       <div className="mb-4 h-2 overflow-hidden rounded-full bg-line"><div className="h-full bg-brand transition-all" style={{ width: `${items.length ? (done / items.length) * 100 : 0}%` }} /></div>
 
       {ordered.map(([loc, list], gi) => (

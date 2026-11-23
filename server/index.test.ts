@@ -34,3 +34,22 @@ describe("wachtwoordbescherming", () => {
     expect(((await res.json()) as { error: string }).error).toMatch(/Geen AI-provider/);
   });
 });
+
+describe("briefing-endpoint", () => {
+  const app = createApp(orch(), new RateLimiter(100), "geheim-wachtwoord-123");
+  const post = (body: unknown) => app.request("/api/ai/briefing", {
+    method: "POST", headers: { ...basic("geheim-wachtwoord-123"), "content-type": "application/json" }, body: JSON.stringify(body),
+  });
+  it("weigert een verzoek zonder tekst of bestand", async () => {
+    const res = await post({ request: { item: { title: "x", format: "reel" } } });
+    expect(res.status).toBe(400);
+  });
+  it("weigert bestandstypes die geen PDF of afbeelding zijn", async () => {
+    const res = await post({ request: { item: { title: "x", format: "reel" }, file: { mediaType: "application/zip", base64: "AAAAAAAAAAAA" } } });
+    expect(res.status).toBe(400);
+  });
+  it("zonder sleutels: duidelijke uitleg", async () => {
+    const res = await post({ request: { item: { title: "x", format: "reel" }, text: "1. Intro" } });
+    expect(res.status).toBe(402);
+  });
+});

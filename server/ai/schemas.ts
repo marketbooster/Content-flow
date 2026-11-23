@@ -96,6 +96,33 @@ export const HooksSchema = z.object({
 });
 export type Hooks = z.infer<typeof HooksSchema>;
 
+const MAX_FILE_BASE64 = 14_000_000; // ± 10 MB bestand
+export const BriefingRequestSchema = z.object({
+  item: z.object({ title: z.string().min(1).max(300), format: z.enum(FORMATS) }),
+  text: z.string().max(30_000).optional(),
+  file: z.object({
+    mediaType: z.enum(["application/pdf", "image/jpeg", "image/png", "image/webp", "image/gif"]),
+    base64: z.string().min(10).max(MAX_FILE_BASE64),
+    fileName: z.string().max(200).optional(),
+  }).optional(),
+}).refine((r) => Boolean(r.text?.trim()) || Boolean(r.file), { message: "Geef tekst of een bestand mee." });
+export type BriefingRequest = z.infer<typeof BriefingRequestSchema>;
+
+export const BriefingExtractSchema = z.object({
+  shots: z.array(z.object({
+    title: z.string(),
+    say: z.string(),
+    mustInclude: z.array(z.string()),
+    notes: z.string(),
+  })),
+  alwaysInclude: z.array(z.string()),
+  dos: z.array(z.string()),
+  donts: z.array(z.string()),
+  deadlines: z.array(z.string()),
+  unclear: z.array(z.string()),
+});
+export type BriefingExtract = z.infer<typeof BriefingExtractSchema>;
+
 export const SynthesisSchema = z.object({
   proposal: ProposalSchema,
   changeLog: z.array(z.object({ change: z.string(), reason: z.string() })),

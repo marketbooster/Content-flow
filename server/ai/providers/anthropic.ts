@@ -1,6 +1,6 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
-import type { AIProvider, Pricing } from "./types";
+import type { AIProvider, Attachment, Pricing } from "./types";
 import { ProviderError } from "./types";
 
 // Officiële eerste-partij prijzen (USD per 1M tokens). Controleer periodiek op anthropic.com/pricing.
@@ -29,7 +29,7 @@ export function createAnthropicProvider(env: NodeJS.ProcessEnv, timeoutMs: numbe
       : pricing === null
         ? `Geen prijsinformatie voor ${model}; voeg die toe in server/ai/providers/anthropic.ts`
         : undefined,
-    async generateJSON({ system, user, schema, maxTokens, signal }) {
+    async generateJSON({ system, user, schema, maxTokens, signal, attachment }) {
       if (!client) throw new ProviderError("Claude is niet geconfigureerd", "anthropic", true);
       try {
         const response = await client.beta.messages.parse(
@@ -37,7 +37,7 @@ export function createAnthropicProvider(env: NodeJS.ProcessEnv, timeoutMs: numbe
             model,
             max_tokens: maxTokens,
             system,
-            messages: [{ role: "user", content: user }],
+            messages: [{ role: "user", content: attachment ? [attachmentBlock(attachment), { type: "text", text: user }] : user }],
             output_config: { effort: "medium", format: zodOutputFormat(schema) },
             // Server-side fallback bij een (onterechte) weigering door veiligheidsclassifiers.
             betas: ["server-side-fallback-2026-07-01"],
@@ -81,4 +81,11 @@ export function createAnthropicProvider(env: NodeJS.ProcessEnv, timeoutMs: numbe
       }
     },
   };
+}
+
+function attachmentBlock(a: Attachment): Anthropic.Beta.BetaContentBlockParam {
+  if (a.mediaType === "application/pdf") {
+    return { type: "document", source: { type: "base64", media_type: "application/pdf", data: a.base64 }, title: a.fileName };
+  }
+  return { type: "image", source: { type: "base64", media_type: a.mediaType, data: a.base64 } };
 }

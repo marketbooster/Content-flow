@@ -72,7 +72,7 @@ export default function TodayPage() {
           <Link to={`/opnamedag?dag=${shootToday.id}`} className="flex items-center gap-3 rounded-2xl border border-accent/40 bg-accent-soft p-4">
             <span className="text-2xl" aria-hidden>🎬</span>
             <span className="flex-1"><b>Opnamedag</b> · {shootToday.contentIds.length} video's · ± {Math.round(shootToday.minutesAvailable / 60)} uur</span>
-            <span className="text-sm text-accent">Draaiboek →</span>
+            <span className="text-sm text-accent">Openen →</span>
           </Link>
         )}
         {postToday.map((c) => <ContentRow key={c.id} c={c} label="Vandaag posten" />)}

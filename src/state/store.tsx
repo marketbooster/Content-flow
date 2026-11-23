@@ -23,11 +23,13 @@ function load(): AppData {
   }
 }
 
-function save(d: AppData) {
+/** true = opgeslagen; false = opslag vol of niet beschikbaar (privévenster). */
+function save(d: AppData): boolean {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(d));
+    return true;
   } catch {
-    /* opslag niet beschikbaar (privévenster): app werkt, maar onthoudt niets */
+    return false;
   }
 }
 
@@ -35,6 +37,8 @@ const uid = () => (crypto.randomUUID ? crypto.randomUUID() : String(Date.now() +
 
 interface Store extends AppData {
   today: string;
+  /** false als de laatste wijziging niet bewaard kon worden (meestal: te veel afbeeldingen). */
+  saved: boolean;
   events: SeasonalEvent[];
   occurrences: EventOccurrence[]; // afgelopen maand + komende ~13 maanden
   updateCreator: (patch: Partial<CreatorProfile>) => void;
@@ -58,8 +62,9 @@ const Ctx = createContext<Store | null>(null);
 
 export function StoreProvider({ children }: { children: ReactNode }) {
   const [data, setData] = useState<AppData>(load);
+  const [saved, setSaved] = useState(true);
   const today = todayInNL();
-  useEffect(() => save(data), [data]);
+  useEffect(() => setSaved(save(data)), [data]);
 
   const events = useMemo(() => [...SEASONAL_EVENTS, ...data.customEvents], [data.customEvents]);
   const occurrences = useMemo(
@@ -72,6 +77,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const store: Store = {
     ...data,
     today,
+    saved,
     events,
     occurrences,
     updateCreator: (patch) => update((d) => ({ ...d, creator: { ...d.creator, ...patch } })),

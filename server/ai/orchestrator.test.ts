@@ -131,3 +131,27 @@ describe("Hook-generator", () => {
     expect((await o.hooks(req)).model).toContain("openai");
   });
 });
+
+describe("Briefing omzetten", () => {
+  it("geeft het bestand door aan het model, registreert kosten en cachet op inhoud", async () => {
+    const seen: unknown[] = [];
+    const p: AIProvider = {
+      id: "anthropic", label: "Claude", model: "m", configured: true, pricing: { inputPerMTok: 1, outputPerMTok: 10 },
+      async generateJSON({ attachment, schemaName }) {
+        seen.push({ attachment, schemaName });
+        return { data: { shots: [{ title: "Intro", say: "", mustInclude: ["product in beeld"], notes: "" }], alwaysInclude: ["#ad"], dos: [], donts: [], deadlines: [], unclear: [] } as never,
+          usage: { inputTokens: 3000, outputTokens: 800 }, model: "m", provider: "anthropic" };
+      },
+    };
+    const ledger = new Ledger(memoryStore<LedgerEntry[]>([]));
+    const o = new Orchestrator({ anthropic: p, openai: fake("openai").p }, ledger, memoryStore<AIJob[]>([]), { monthlyBudgetUSD: 10, councilMonthlyLimit: 1, maxTokens: 2000 });
+    const req = { item: { title: "Body & Fit reel", format: "reel" as const }, file: { mediaType: "application/pdf" as const, base64: "JVBERi0xLjQK", fileName: "briefing.pdf" } };
+    const r = await o.briefing(req);
+    expect(r.shots[0].mustInclude).toEqual(["product in beeld"]);
+    expect(r.alwaysInclude).toEqual(["#ad"]);
+    expect(seen[0]).toMatchObject({ schemaName: "briefing", attachment: { mediaType: "application/pdf", fileName: "briefing.pdf" } });
+    expect(ledger.monthEntries()[0].step).toBe("briefing");
+    expect((await o.briefing(req)).cached).toBe(true);
+    expect(seen).toHaveLength(1);
+  });
+});

@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { api, type HookResult } from "../api";
+import { BriefingEditor } from "../components/BriefingEditor";
 import { Button, Card, ConfirmButton, Empty, LinkButton, PageHeader, SectionTitle } from "../components/ui";
 import { PILLAR_LABELS } from "../domain/profile";
 import { defaultLocation } from "../domain/shoot";
@@ -82,6 +83,8 @@ export default function ContentPage() {
         </label>
         {(c.hashtags?.length ?? 0) > 0 && <p className="text-sm text-accent">{c.hashtags!.join(" ")}</p>}
       </Card>
+
+      <BriefingEditor item={c} />
 
       <HookGenerator itemId={c.id} />
 

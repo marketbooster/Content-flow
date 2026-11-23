@@ -11,7 +11,7 @@ import { type AIJob, BudgetError, Orchestrator } from "./ai/orchestrator";
 import { createAnthropicProvider } from "./ai/providers/anthropic";
 import { createOpenAIProvider } from "./ai/providers/openai";
 import { ProviderError } from "./ai/providers/types";
-import { BriefSchema, HookRequestSchema } from "./ai/schemas";
+import { BriefingRequestSchema, BriefSchema, HookRequestSchema } from "./ai/schemas";
 
 try {
   process.loadEnvFile?.(".env");
@@ -73,6 +73,22 @@ export function createApp(orchestrator: Orchestrator, limiter: RateLimiter, pass
     if (!parsed.success) return c.json({ error: "Ongeldig verzoek", details: parsed.error.issues }, 400);
     try {
       return c.json(await orchestrator.hooks(parsed.data.request, parsed.data.primary, c.req.raw.signal));
+    } catch (err) {
+      if (err instanceof BudgetError) return c.json({ error: err.message }, 402);
+      if (err instanceof ProviderError) return c.json({ error: err.message }, 502);
+      console.error(err);
+      return c.json({ error: "Onverwachte serverfout" }, 500);
+    }
+  });
+
+  const BriefingBody = z.object({ primary: z.enum(["anthropic", "openai"]).default("anthropic"), request: BriefingRequestSchema });
+  app.post("/api/ai/briefing", async (c) => {
+    const ip = c.req.header("x-forwarded-for")?.split(",")[0] ?? "local";
+    if (!limiter.allow(ip)) return c.json({ error: "Te veel verzoeken; probeer het over een minuut opnieuw." }, 429);
+    const parsed = BriefingBody.safeParse(await c.req.json().catch(() => null));
+    if (!parsed.success) return c.json({ error: parsed.error.issues[0]?.message ?? "Ongeldig verzoek" }, 400);
+    try {
+      return c.json(await orchestrator.briefing(parsed.data.request, parsed.data.primary, c.req.raw.signal));
     } catch (err) {
       if (err instanceof BudgetError) return c.json({ error: err.message }, 402);
       if (err instanceof ProviderError) return c.json({ error: err.message }, 502);

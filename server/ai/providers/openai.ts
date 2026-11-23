@@ -32,14 +32,24 @@ export function createOpenAIProvider(env: NodeJS.ProcessEnv, timeoutMs: number):
     pricing,
     configured: !configProblem,
     configProblem,
-    async generateJSON({ system, user, schema, schemaName, maxTokens, signal }) {
+    async generateJSON({ system, user, schema, schemaName, maxTokens, signal, attachment }) {
       if (!client || configProblem) throw new ProviderError(`OpenAI is niet geconfigureerd: ${configProblem}`, "openai", true);
       try {
         const response = await client.responses.parse(
           {
             model,
             instructions: system,
-            input: user,
+            input: attachment
+              ? [{
+                  role: "user",
+                  content: [
+                    attachment.mediaType === "application/pdf"
+                      ? { type: "input_file", filename: attachment.fileName ?? "briefing.pdf", file_data: `data:application/pdf;base64,${attachment.base64}` }
+                      : { type: "input_image", detail: "auto", image_url: `data:${attachment.mediaType};base64,${attachment.base64}` },
+                    { type: "input_text", text: user },
+                  ],
+                }]
+              : user,
             max_output_tokens: maxTokens,
             text: { format: zodTextFormat(schema, schemaName) },
           },

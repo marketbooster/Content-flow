@@ -1,4 +1,5 @@
 import { NavLink, Route, Routes, useLocation } from "react-router-dom";
+import { useStore } from "./state/store";
 import BoardPage from "./pages/BoardPage";
 import CalendarPage from "./pages/CalendarPage";
 import ContentPage from "./pages/ContentPage";
@@ -9,6 +10,7 @@ import MorePage from "./pages/MorePage";
 import RadarPage from "./pages/RadarPage";
 import ReviewPage from "./pages/ReviewPage";
 import SettingsPage from "./pages/SettingsPage";
+import ShootModePage from "./pages/ShootModePage";
 import ShootPage from "./pages/ShootPage";
 import StudioPage from "./pages/StudioPage";
 import SwipePage from "./pages/SwipePage";
@@ -68,6 +70,7 @@ export function Logo() {
 export default function App() {
   // Het productiebord krijgt op grote schermen de volle breedte; de rest blijft leesbaar smal.
   const wide = useLocation().pathname === "/bord";
+  const { saved } = useStore();
   return (
     <div className="min-h-dvh pb-24 md:pb-0 md:pl-60">
       <nav aria-label="Hoofdmenu" className="safe-bottom fixed bottom-0 inset-x-0 z-20 border-t border-line bg-card/95 backdrop-blur md:inset-y-0 md:right-auto md:w-60 md:border-t-0 md:border-r">
@@ -83,6 +86,11 @@ export default function App() {
         </ul>
       </nav>
       <main className={`mx-auto px-4 pt-5 md:pt-8 ${wide ? "max-w-6xl" : "max-w-3xl"}`}>
+        {!saved && (
+          <div role="alert" className="mb-4 rounded-2xl border border-danger/40 bg-danger/10 p-3 text-sm text-danger">
+            Je laatste wijziging is niet bewaard: de opslag van deze browser is vol. Verwijder een paar briefing-afbeeldingen en probeer het opnieuw.
+          </div>
+        )}
         <Routes>
           <Route path="/" element={<TodayPage />} />
           <Route path="/radar" element={<RadarPage />} />
@@ -92,6 +100,7 @@ export default function App() {
           <Route path="/swipe" element={<SwipePage />} />
           <Route path="/maandplanning" element={<MonthPlanPage />} />
           <Route path="/opnamedag" element={<ShootPage />} />
+          <Route path="/opnamemodus" element={<ShootModePage />} />
           <Route path="/deals" element={<DealsPage />} />
           <Route path="/studio" element={<StudioPage />} />
           <Route path="/studio/review/:id" element={<ReviewPage />} />

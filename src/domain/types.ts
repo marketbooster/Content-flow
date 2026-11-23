@@ -159,6 +159,35 @@ export const SHOOT_LOCATIONS: { id: ShootLocation; label: string; emoji: string 
   { id: "onderweg", label: "Onderweg / winkel", emoji: "🛒" },
 ];
 
+/** Eén shot uit een briefing: wat je zegt/laat zien en wat er verplicht in moet. */
+export interface Shot {
+  id: string;
+  title: string;
+  /** Tekst die je uitspreekt of in beeld zet. */
+  say?: string;
+  /** Verplichte elementen: product in beeld, kortingscode, claim, @merk… */
+  mustInclude: string[];
+  notes?: string;
+}
+
+export interface Briefing {
+  /** Originele tekst (getypt, geplakt of uit een tekstbestand). */
+  text: string;
+  shots: Shot[];
+  /** Geldt voor de hele video, op elk shot zichtbaar (bv. #ad, @merk, code THIES10). */
+  alwaysInclude: string[];
+  dos: string[];
+  donts: string[];
+  /** Gecomprimeerde afbeeldingen van de briefing (screenshots/foto's), als data-URL. */
+  images: string[];
+  /** Onduidelijkheden die de AI in de briefing vond (navragen bij het merk). */
+  openQuestions?: string[];
+  deadlines?: string[];
+  fileName?: string;
+  source: "handmatig" | "upload" | "deal" | "shotlist" | "ai";
+  updatedAt: string;
+}
+
 export interface ShootDay {
   id: string;
   date: ISODate;
@@ -220,6 +249,7 @@ export interface ContentItem {
   needsNutritionCalc?: boolean;
   location?: ShootLocation;
   dealId?: string;
+  briefing?: Briefing;
   hooks?: string[];
   hashtags?: string[];
   createdAt: string;

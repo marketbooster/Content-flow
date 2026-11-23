@@ -14,6 +14,14 @@ export interface JSONResult<T> {
   provider: ProviderId;
 }
 
+export type AttachmentType = "application/pdf" | "image/jpeg" | "image/png" | "image/webp" | "image/gif";
+
+export interface Attachment {
+  mediaType: AttachmentType;
+  base64: string;
+  fileName?: string;
+}
+
 export interface Pricing {
   inputPerMTok: number;
   outputPerMTok: number;
@@ -34,6 +42,8 @@ export interface AIProvider {
     schemaName: string;
     maxTokens: number;
     signal?: AbortSignal;
+    /** Optioneel: PDF of afbeelding die het model moet lezen (bv. een briefing). */
+    attachment?: Attachment;
   }): Promise<JSONResult<z.infer<S>>>;
 }
 

@@ -4,14 +4,15 @@
 import { createHash, randomUUID } from "node:crypto";
 import type { z } from "zod";
 import { costOf, Ledger, type Store } from "./ledger";
-import type { AIProvider, ProviderId } from "./providers/types";
+import type { AIProvider, Attachment, ProviderId } from "./providers/types";
 import { ProviderError } from "./providers/types";
 import {
-  type Brief, type HookRequest, type Hooks, HooksSchema, type Proposal, ProposalSchema, type Review, ReviewSchema,
+  type Brief, type BriefingExtract, BriefingExtractSchema, type BriefingRequest, type HookRequest, type Hooks, HooksSchema, type Proposal, ProposalSchema, type Review, ReviewSchema,
   type Synthesis, SynthesisSchema,
 } from "./schemas";
 
 export type HookResult = Hooks & { model: string; costUSD: number; cached?: boolean };
+export type BriefingResult = BriefingExtract & { model: string; costUSD: number; cached?: boolean };
 
 export type AIMode = "fast" | "smart" | "council";
 
@@ -169,44 +170,66 @@ export class Orchestrator {
     return job;
   }
 
-  // ───────── Hook-generator: één goedkope aanroep ─────────
-  private hookCache = new Map<string, { at: number; result: HookResult }>();
+  // ───────── Losse, goedkope aanroepen (hooks, briefing) ─────────
+  private singleCache = new Map<string, { at: number; result: unknown }>();
 
-  async hooks(req: HookRequest, primary: ProviderId = "anthropic", signal?: AbortSignal): Promise<HookResult> {
-    const key = createHash("sha256").update(JSON.stringify({ req, primary })).digest("hex");
-    const hit = this.hookCache.get(key);
-    if (hit && Date.now() - hit.at < 24 * 3600_000) return { ...hit.result, cached: true };
+  private async singleCall<S extends z.ZodType>(opts: {
+    step: string; system: string; user: string; schema: S; schemaName: string; maxTokens: number;
+    primary: ProviderId; attachment?: Attachment; signal?: AbortSignal; cacheParts: unknown;
+  }): Promise<z.infer<S> & { model: string; costUSD: number; cached?: boolean }> {
+    type R = z.infer<S> & { model: string; costUSD: number; cached?: boolean };
+    const key = createHash("sha256").update(JSON.stringify({ step: opts.step, p: opts.cacheParts, primary: opts.primary })).digest("hex");
+    const hit = this.singleCache.get(key);
+    if (hit && Date.now() - hit.at < 24 * 3600_000) return { ...(hit.result as R), cached: true };
 
-    const usable = ([primary, primary === "anthropic" ? "openai" : "anthropic"] as ProviderId[])
+    const usable = ([opts.primary, opts.primary === "anthropic" ? "openai" : "anthropic"] as ProviderId[])
       .filter((id) => this.providers[id].configured);
     if (usable.length === 0) throw new BudgetError("Geen AI-provider geconfigureerd. Zet API-sleutels op de server.");
     const spent = this.ledger.monthSpendUSD();
-    const worst = this.worstCase("fast", usable[0]);
-    if (spent + worst > this.cfg.monthlyBudgetUSD) {
+    if (spent + this.worstCase("fast", usable[0]) > this.cfg.monthlyBudgetUSD) {
       throw new BudgetError(`Maandbudget AI bijna op: $${spent.toFixed(2)} van $${this.cfg.monthlyBudgetUSD} gebruikt.`);
     }
-
     const jobId = randomUUID();
-    const user = hookPrompt(req);
     let lastErr: unknown;
     for (const pid of usable) {
       const p = this.providers[pid];
       try {
-        const res = await p.generateJSON({ system: SYSTEM_HOOKS, user, schema: HooksSchema, schemaName: "hooks", maxTokens: 8000, signal });
+        const res = await p.generateJSON({
+          system: opts.system, user: opts.user, schema: opts.schema, schemaName: opts.schemaName,
+          maxTokens: opts.maxTokens, signal: opts.signal, attachment: opts.attachment,
+        });
         const costUSD = p.pricing ? costOf(res.usage, p.pricing) : 0;
         this.ledger.record({
-          at: new Date().toISOString(), jobId, step: "hooks", provider: pid, model: res.model,
+          at: new Date().toISOString(), jobId, step: opts.step, provider: pid, model: res.model,
           inputTokens: res.usage.inputTokens, outputTokens: res.usage.outputTokens, costUSD,
         });
-        const result: HookResult = { ...res.data, model: `${p.label} · ${res.model}`, costUSD: round(costUSD) };
-        this.hookCache.set(key, { at: Date.now(), result });
+        const result = { ...(res.data as object), model: `${p.label} · ${res.model}`, costUSD: round(costUSD) } as R;
+        this.singleCache.set(key, { at: Date.now(), result });
         return result;
       } catch (err) {
         lastErr = err;
         if (!(err instanceof ProviderError && err.retryableElsewhere)) break;
       }
     }
-    throw lastErr instanceof Error ? lastErr : new Error("Hooks genereren mislukt");
+    throw lastErr instanceof Error ? lastErr : new Error(`${opts.step} mislukt`);
+  }
+
+  hooks(req: HookRequest, primary: ProviderId = "anthropic", signal?: AbortSignal): Promise<HookResult> {
+    return this.singleCall({
+      step: "hooks", system: SYSTEM_HOOKS, user: hookPrompt(req), schema: HooksSchema, schemaName: "hooks",
+      maxTokens: 8000, primary, signal, cacheParts: req,
+    });
+  }
+
+  /** Briefing (tekst, PDF of afbeelding) -> shots met verplichte elementen. */
+  briefing(req: BriefingRequest, primary: ProviderId = "anthropic", signal?: AbortSignal): Promise<BriefingResult> {
+    const attachment = req.file ? { mediaType: req.file.mediaType, base64: req.file.base64, fileName: req.file.fileName } : undefined;
+    return this.singleCall({
+      step: "briefing", system: SYSTEM_BRIEFING, user: briefingPrompt(req), schema: BriefingExtractSchema, schemaName: "briefing",
+      maxTokens: 12000, primary, signal, attachment,
+      // Cache op inhoud, niet op het hele bestand (scheelt geheugen).
+      cacheParts: { item: req.item, text: req.text, file: req.file && createHash("sha256").update(req.file.base64).digest("hex") },
+    });
   }
 
   // ───────── Snel & Slim ─────────
@@ -337,6 +360,23 @@ const SYSTEM_HOOKS = `Je bent een scherpe short-form copywriter voor een Nederla
 ${SHARED_RULES}
 - Geen clickbait die de video niet waarmaakt. Noem geen calorieën als feit.
 - Is dit een betaalde samenwerking, zet dan #ad of 'betaalde samenwerking' in de caption en noem dat in notes.`;
+
+const SYSTEM_BRIEFING = `Je zet een merkbriefing om in een opnameplan voor een Nederlandse creator. Lees de briefing (tekst, PDF of afbeelding) zorgvuldig en verdeel de video in logische shots in de volgorde van filmen.
+Per shot: een korte titel (wat je filmt), wat de creator zegt of als tekst in beeld zet (say; leeg als niet van toepassing), en de verplichte elementen uit de briefing die in dát shot moeten (mustInclude: product in beeld, claims, logo, kortingscode, links).
+Zet elementen die voor de hele video gelden (bv. #ad, @merk, kortingscode, verplichte hashtags) in alwaysInclude. Do's en don'ts apart. Deadlines letterlijk overnemen.
+Regels:
+- Neem alleen over wat in de briefing staat; verzin geen claims, codes of merknamen. Wat onduidelijk of tegenstrijdig is, zet je in unclear.
+- Formuleer kort en scanbaar: de creator leest dit van een scherm tijdens het filmen.
+- Schrijf in het Nederlands, ook als de briefing Engelstalig is (merk- en productnamen ongewijzigd).
+- Bevat de briefing geen betaalde-samenwerking-vermelding maar is het wel een deal, noem dan in unclear dat labeling (#ad) nodig is.`;
+
+function briefingPrompt(r: BriefingRequest): string {
+  return [
+    `VIDEO: ${r.item.title} (${r.item.format})`,
+    r.file ? `De briefing staat in het bijgevoegde bestand${r.file.fileName ? ` (${r.file.fileName})` : ""}.` : null,
+    r.text?.trim() ? `BRIEFINGTEKST:\n${r.text.trim()}` : null,
+  ].filter(Boolean).join("\n\n");
+}
 
 function hookPrompt(r: HookRequest): string {
   return [

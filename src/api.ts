@@ -63,7 +63,27 @@ export interface HookResult {
   cached?: boolean;
 }
 
+export interface BriefingAIResult {
+  shots: { title: string; say: string; mustInclude: string[]; notes: string }[];
+  alwaysInclude: string[];
+  dos: string[];
+  donts: string[];
+  deadlines: string[];
+  unclear: string[];
+  model: string;
+  costUSD: number;
+  cached?: boolean;
+}
+
+export type BriefingFileType = "application/pdf" | "image/jpeg" | "image/png" | "image/webp" | "image/gif";
+
 export const api = {
+  briefing: (request: { item: { title: string; format: ContentFormat }; text?: string; file?: { mediaType: BriefingFileType; base64: string; fileName?: string } }) =>
+    fetch("/api/ai/briefing", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ request }),
+    }).then((r) => json<BriefingAIResult>(r)),
   hooks: (request: { creator: Brief["creator"]; item: { title: string; hook?: string; description?: string; format: ContentFormat; pillar: PillarId } }) =>
     fetch("/api/ai/hooks", {
       method: "POST",
