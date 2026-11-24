@@ -40,6 +40,7 @@ const TYPE: Record<ItemType, string> = {
   letter: "brief",
   blog: "blog",
   newsletter: "nieuwsbrief",
-  pitch: "pitch",
+  pitch: "linkpitch",
+  brief: "blogbrief",
 };
 export const typeLabel = (t: ItemType) => TYPE[t];

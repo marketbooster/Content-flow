@@ -7,6 +7,7 @@ import { Rocket } from "lucide-react";
 import type { InboxItem } from "@/lib/types";
 import { REJECT_REASONS } from "@/lib/types";
 import {
+  approveBrief,
   approveItem,
   bulkApprove,
   confirmManualSend,
@@ -25,7 +26,8 @@ import { formatDayTime } from "@/lib/time";
 export interface CardData {
   item: InboxItem;
   slides: string[];
-  route: { kind: "api" | "manual" | "none"; label: string; ready: boolean };
+  route: { kind: "api" | "manual" | "none" | "internal"; label: string; ready: boolean };
+  seo: { score: number; checks: { id: string; label: string; ok: boolean; detail?: string }[] } | null;
   manual: { clipboard: string; openUrl: string | null } | null;
   blocked: string | null;
 }
@@ -207,7 +209,13 @@ export function TodayClient(props: {
           <SwipeCard
             key={current.item.id}
             card={current}
-            onRight={() => (current.manual ? copyAndOpen(current) : current.route.ready && !current.blocked && send(current))}
+            onRight={() =>
+              current.route.kind === "internal"
+                ? act(() => approveBrief(current.item.id), () => hide(current.item.id))
+                : current.manual
+                  ? copyAndOpen(current)
+                  : current.route.ready && !current.blocked && send(current)
+            }
             onLeft={() => setMode("reject")}
             onUp={() => setMode("edit")}
           >
@@ -222,10 +230,22 @@ export function TodayClient(props: {
         <div className="flex flex-col gap-3">
           {current.blocked ? (
             <p className="rounded-[12px] bg-wait p-3 text-wait-ink">Geblokkeerd: {current.blocked}</p>
+          ) : current.route.kind === "internal" ? (
+            <PrimaryButton
+              disabled={pending}
+              onClick={() =>
+                act(() => approveBrief(current.item.id), () => {
+                  hide(current.item.id);
+                  showToast({ text: "Ranker schrijft de blog. Je ziet hem terug als hij klaar is." }, 4000);
+                })
+              }
+            >
+              Schrijf deze blog
+            </PrimaryButton>
           ) : current.manual ? (
             <PrimaryButton onClick={() => copyAndOpen(current)}>Kopieer en open</PrimaryButton>
           ) : current.route.ready ? (
-            <PrimaryButton onClick={() => send(current)}>Verzend</PrimaryButton>
+            <PrimaryButton onClick={() => send(current)}>{current.item.type === "blog" ? "Publiceer" : "Verzend"}</PrimaryButton>
           ) : (
             <p className="t-meta rounded-[12px] bg-surface p-3">
               {current.route.label} is nog niet gekoppeld. <Link href="/profiel#koppelingen" className="underline">Koppelingen</Link>
@@ -358,7 +378,7 @@ function CardBody({ card }: { card: CardData }) {
         {item.value_hint && <p className="t-meta">{item.value_hint}</p>}
       </div>
       <h2 className="t-card">{item.title}</h2>
-      <ItemPreview item={item} slides={card.slides} />
+      <ItemPreview item={item} slides={card.slides} seo={card.seo} />
     </article>
   );
 }

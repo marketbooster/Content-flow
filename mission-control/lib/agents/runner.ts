@@ -16,7 +16,7 @@ export class AgentBlocked extends Error {}
 export const AGENT_SCHEDULE: Record<AgentName, { hour: number; minute: number; weekdays?: number[]; label: string; sprint: number }> = {
   scout: { hour: 5, minute: 0, label: "dagelijks 05:00", sprint: 4 },
   hunter: { hour: 5, minute: 30, label: "dagelijks 05:30", sprint: 3 },
-  ranker: { hour: 5, minute: 0, weekdays: [1], label: "ma 05:00", sprint: 4 },
+  ranker: { hour: 5, minute: 0, weekdays: [1, 5], label: "ma 05:00 blogbrief · vr 05:00 linkkans", sprint: 1 },
   creator: { hour: 6, minute: 0, label: "dagelijks 06:00", sprint: 1 },
   listener: { hour: 6, minute: 30, label: "dagelijks 06:30", sprint: 2 },
   nurturer: { hour: 7, minute: 0, label: "dagelijks 07:00", sprint: 2 },
@@ -27,7 +27,7 @@ export const AGENT_SCHEDULE: Record<AgentName, { hour: number; minute: number; w
 export const AGENT_INFO: Record<AgentName, { title: string; job: string }> = {
   scout: { title: "Scout", job: "Kansen-radar: nieuws, vacatures, vragen" },
   hunter: { title: "Hunter", job: "Acquisitie: 10 persoonlijke benaderingen" },
-  ranker: { title: "Ranker", job: "SEO: blog, pagina-update of linkpitch" },
+  ranker: { title: "Ranker", job: "SEO: blogbrief, volledige blog met 1 klik live, linkkans" },
   creator: { title: "Creator", job: "Social: 10 ideeën en afgemaakte posts" },
   listener: { title: "Listener", job: "Engagement: reacties en DM's" },
   nurturer: { title: "Nurturer", job: "E-mail: opvolging en nieuwsbrief" },

@@ -110,6 +110,13 @@ export function createSupabaseRepo(db: SupabaseClient): Repo {
       return check(await db.from("calendar").update(patch).eq("id", id).select("*").single());
     },
 
+    async listKeywords() {
+      return check(await db.from("keywords").select("*").order("checked_at", { ascending: false }).limit(200));
+    },
+    async addKeyword(keyword) {
+      check(await db.from("keywords").insert({ keyword }));
+    },
+
     async listSuppression() {
       return check(await db.from("suppression").select("*").order("created_at", { ascending: false }));
     },

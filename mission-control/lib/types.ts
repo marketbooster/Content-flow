@@ -18,7 +18,8 @@ export type ItemType =
   | "letter"
   | "blog"
   | "newsletter"
-  | "pitch";
+  | "pitch"
+  | "brief";
 
 export type ItemStatus =
   | "pending" // wacht op jou
@@ -53,7 +54,40 @@ export interface ReelScript {
   cta: string;
 }
 
+export interface BlogBrief {
+  keyword: string;
+  intent: string;
+  title: string;
+  angle: string;
+  outline: string[];
+  questions: string[];
+  internal_links: { anchor: string; url: string }[];
+  serp_notes: string;
+  cannibalization: string;
+}
+
+export interface BlogDraft {
+  slug: string;
+  seo_title: string;
+  seo_description: string;
+  excerpt: string;
+  tags: string[];
+  primary_keyword: string;
+  markdown: string;
+}
+
+export interface Repurpose {
+  linkedin_hook: string;
+  carousel_hook: string;
+  newsletter_paragraph: string;
+}
+
 export interface ItemPayload {
+  brief?: BlogBrief;
+  blog?: BlogDraft;
+  repurpose?: Repurpose;
+  /** Linkpitch: e-mailadres en onderwerp. */
+  email?: { to: string; subject: string };
   first_comment?: string;
   slides?: Slide[];
   reel?: ReelScript;
@@ -180,6 +214,16 @@ export interface DispatchLog {
   body: string;
   external_id: string | null;
   external_url: string | null;
+}
+
+export interface Keyword {
+  id: string;
+  keyword: string;
+  page: string | null;
+  position: number | null;
+  impressions: number | null;
+  clicks: number | null;
+  checked_at: string;
 }
 
 export interface Suppression {

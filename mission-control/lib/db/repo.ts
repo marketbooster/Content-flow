@@ -7,6 +7,7 @@ import type {
   ContentIdea,
   DispatchLog,
   InboxItem,
+  Keyword,
   Learning,
   Settings,
   Suppression,
@@ -45,6 +46,9 @@ export interface Repo {
   getCalendarEntry(id: string): Promise<CalendarEntry | null>;
   createCalendarEntry(e: NewCalendarEntry): Promise<CalendarEntry>;
   updateCalendarEntry(id: string, patch: Partial<CalendarEntry>): Promise<CalendarEntry>;
+
+  listKeywords(): Promise<Keyword[]>;
+  addKeyword(keyword: string): Promise<void>;
 
   listSuppression(): Promise<Suppression[]>;
   addSuppression(value: string, reason: string): Promise<void>;

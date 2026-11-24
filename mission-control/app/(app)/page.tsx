@@ -2,6 +2,7 @@ import { repo, serviceRepo } from "@/lib/db";
 import { routeFor } from "@/lib/dispatch/adapters";
 import { guardFor } from "@/lib/dispatch/dispatcher";
 import { slidePath } from "@/lib/slides";
+import { seoChecks, seoScore } from "@/lib/seo";
 import { budgetState } from "@/lib/guardrails";
 import { amsParts, startOfAmsDay, startOfAmsMonth } from "@/lib/time";
 import { TodayClient, type CardData } from "@/components/today";
@@ -24,12 +25,13 @@ export default async function TodayPage() {
     if (s.snoozed_until && new Date(s.snoozed_until) <= now) await r.updateInboxItem(s.id, { status: "pending", snoozed_until: null });
   }
 
-  const [all, settings, sentToday, spent, waiting] = await Promise.all([
+  const [all, settings, sentToday, spent, waiting, brain] = await Promise.all([
     r.listInbox({ statuses: ["pending"] }),
     r.getSettings(),
     r.sentCountSince(startOfAmsDay(now)),
     r.costSince(startOfAmsMonth(now)),
     r.listInbox({ statuses: ["approved", "scheduled"] }),
+    r.getBrain(),
   ]);
   const visible = all.filter((i) => !i.visible_from || new Date(i.visible_from) <= now).slice(0, MAX_CARDS);
 
@@ -49,6 +51,12 @@ export default async function TodayPage() {
         route: { kind: adapter.kind, label: adapter.label, ready: adapter.kind === "manual" || adapter.configured() },
         manual: adapter.manual ? adapter.manual(item) : null,
         blocked,
+        seo: item.payload.blog
+          ? (() => {
+              const checks = seoChecks(item.payload.blog, brain.forbidden_words);
+              return { score: seoScore(checks), checks };
+            })()
+          : null,
       };
     }),
   );
@@ -59,7 +67,7 @@ export default async function TodayPage() {
       greeting={`${greeting(now)} Thysja`}
       cards={cards}
       doneToday={doneToday}
-      waitingCount={waiting.length}
+      waitingCount={waiting.length + all.filter((i) => i.visible_from && new Date(i.visible_from) > now).length}
       paused={settings.paused}
       budget={budgetState(spent, settings.monthly_budget_eur)}
     />

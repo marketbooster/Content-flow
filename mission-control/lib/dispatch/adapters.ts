@@ -1,6 +1,7 @@
 import "server-only";
 import type { Channel, InboxItem } from "../types";
 import { slideUrl } from "../slides";
+import { publishBlog, sitePublishConfigured } from "../site";
 
 export interface SendResult {
   externalId?: string;
@@ -11,7 +12,7 @@ export interface SendResult {
 /** 'api' = 1 klik, de dispatcher verstuurt. 'manual' = 1-tap: tekst op klembord, app opent, jij plakt. */
 export interface Adapter {
   id: string;
-  kind: "api" | "manual" | "none";
+  kind: "api" | "manual" | "none" | "internal";
   label: string;
   configured: () => boolean;
   /** Waarom niet geconfigureerd / wat ontbreekt. */
@@ -150,6 +151,47 @@ const linkedInManual = manual("linkedin_manual", "LinkedIn (1-tap)", (i) =>
 const instagramReelManual = manual("instagram_reel_manual", "Instagram Reel (1-tap na filmen)", () => "https://www.instagram.com/");
 const phoneManual = manual("phone", "Bellen (1-tap)", (i) => (i.recipient_key ? `tel:${i.recipient_key.replace(/\s/g, "")}` : null));
 
+// ── Blog op marketbooster.nl ─────────────────────────────────────────
+const blog: Adapter = {
+  id: "site_blog",
+  kind: "api",
+  label: "Blog op marketbooster.nl",
+  configured: sitePublishConfigured,
+  missing: () => need("SITE_SUPABASE_URL", "SITE_BLOG_SECRET"),
+  async send(item) {
+    const r = await publishBlog(item);
+    return r.live
+      ? { externalId: r.id, externalUrl: r.url, detail: "Live op marketbooster.nl" }
+      : { externalId: r.id, externalUrl: r.adminUrl, detail: "Als concept op de site gezet; publiceer met één klik in je admin" };
+  },
+};
+
+// ── Linkpitch: 1-tap via je mailapp tot Gmail gekoppeld is (sprint 2) ─
+const pitchMail: Adapter = {
+  id: "mailto",
+  kind: "manual",
+  label: "E-mail (1-tap via je mailapp)",
+  configured: () => true,
+  missing: () => [],
+  manual: (item) => {
+    const to = item.payload.email?.to ?? "";
+    const subject = item.payload.email?.subject ?? item.title;
+    const url = to.includes("@")
+      ? `mailto:${encodeURIComponent(to)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(item.body)}`
+      : to || null;
+    return { clipboard: item.body, openUrl: url };
+  },
+};
+
+// Blogbrief: goedkeuren = Ranker gaat schrijven. Gaat nooit naar buiten.
+const internal: Adapter = {
+  id: "internal",
+  kind: "internal",
+  label: "Intern",
+  configured: () => true,
+  missing: () => [],
+};
+
 const notConnected = (id: string, label: string): Adapter => ({
   id,
   kind: "none",
@@ -167,7 +209,8 @@ export const ADAPTERS = {
   phoneManual,
   gmail: notConnected("gmail", "Gmail (info@) — sprint 2"),
   brevo: notConnected("brevo", "Brevo nieuwsbrief — sprint 2"),
-  blog: notConnected("blog", "Blog publiceren — sprint 4"),
+  blog,
+  pitchMail,
   print: notConnected("print", "Printwachtrij brieven — sprint 3"),
 };
 
@@ -184,8 +227,10 @@ export function routeFor(item: InboxItem): Adapter {
     return instagram;
   }
   if (ch === "phone") return phoneManual;
+  if (item.type === "brief") return internal;
+  if (ch === "email" && item.type === "pitch") return pitchMail;
   if (ch === "email") return ADAPTERS.gmail;
   if (ch === "newsletter") return ADAPTERS.brevo;
-  if (ch === "blog") return ADAPTERS.blog;
+  if (ch === "blog") return blog;
   return ADAPTERS.print;
 }

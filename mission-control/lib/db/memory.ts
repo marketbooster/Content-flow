@@ -13,6 +13,7 @@ import {
   type ContentIdea,
   type DispatchLog,
   type InboxItem,
+  type Keyword,
   type Settings,
   type Suppression,
 } from "../types";
@@ -27,6 +28,7 @@ interface State {
   calendar: CalendarEntry[];
   suppression: Suppression[];
   runs: AgentRun[];
+  keywords?: Keyword[];
 }
 
 const file = () => path.join(process.cwd(), ".data", "demo.json");
@@ -165,6 +167,17 @@ export function createMemoryRepo(): Repo {
     },
     async updateCalendarEntry(id, patch) {
       return tx((s) => patchIn(s.calendar, id, patch));
+    },
+    async listKeywords() {
+      return load().keywords ?? [];
+    },
+    async addKeyword(keyword) {
+      tx((s) => {
+        s.keywords = [
+          ...(s.keywords ?? []),
+          { id: randomUUID(), keyword, page: null, position: null, impressions: null, clicks: null, checked_at: now() },
+        ];
+      });
     },
     async listSuppression() {
       return load().suppression;

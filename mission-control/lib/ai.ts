@@ -121,6 +121,61 @@ function cost(
   return Math.round(usd * USD_TO_EUR * 10_000) / 10_000;
 }
 
+const WEB_SEARCH_USD = 0.01; // per zoekopdracht
+
+/**
+ * Onderzoek met Claude's eigen webzoekfunctie (Nederlandse resultaten).
+ * Geeft platte notities terug; daarna maakt callStructured er een vast formaat van.
+ */
+export async function research(opts: { agentPrompt: string; brain: Brain; task: string; maxSearches?: number; model?: string }): Promise<{ notes: string; usage: Usage }> {
+  const model = opts.model ?? MODEL_WRITE;
+  const anthropic = getClient();
+  const messages: Anthropic.Beta.BetaMessageParam[] = [{ role: "user", content: opts.task }];
+  let usage: Usage = { ...ZERO_USAGE };
+  let notes = "";
+  try {
+    for (let turn = 0; turn < 4; turn++) {
+      const msg = await anthropic.beta.messages
+        .stream({
+          model,
+          max_tokens: 16000,
+          system: [
+            { type: "text", text: opts.agentPrompt },
+            { type: "text", text: brainContext(opts.brain), cache_control: { type: "ephemeral" } },
+          ],
+          messages,
+          tools: [
+            {
+              type: "web_search_20260209",
+              name: "web_search",
+              max_uses: opts.maxSearches ?? 5,
+              user_location: { type: "approximate", country: "NL", city: "Kampen", timezone: "Europe/Amsterdam" },
+            },
+          ],
+          output_config: { effort: "medium" },
+          betas: ["server-side-fallback-2026-07-01"],
+          fallbacks: "default",
+        })
+        .finalMessage();
+      const searches = msg.usage.server_tool_use?.web_search_requests ?? 0;
+      usage = addUsage(usage, {
+        inputTokens: msg.usage.input_tokens + (msg.usage.cache_creation_input_tokens ?? 0) + (msg.usage.cache_read_input_tokens ?? 0),
+        outputTokens: msg.usage.output_tokens,
+        costEur: cost(msg.model ?? model, msg.usage) + Math.round(searches * WEB_SEARCH_USD * USD_TO_EUR * 10_000) / 10_000,
+      });
+      notes += msg.content.flatMap((b) => (b.type === "text" ? [b.text] : [])).join("");
+      if (msg.stop_reason === "refusal") throw new AIError("Claude weigerde dit onderzoek.");
+      if (msg.stop_reason !== "pause_turn") break;
+      messages.push({ role: "assistant", content: msg.content });
+    }
+    return { notes: notes.trim(), usage };
+  } catch (err) {
+    if (err instanceof AIError) throw err;
+    if (err instanceof Anthropic.APIError) throw new AIError(`Claude API-fout bij onderzoek (${err.status ?? "netwerk"}).`);
+    throw err;
+  }
+}
+
 export const addUsage = (a: Usage, b: Usage): Usage => ({
   inputTokens: a.inputTokens + b.inputTokens,
   outputTokens: a.outputTokens + b.outputTokens,

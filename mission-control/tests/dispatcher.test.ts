@@ -99,4 +99,38 @@ describe("dispatcher", () => {
     expect((await confirmManual(repo, a.id, TUE_10)).outcome).toBe("sent");
     expect((await confirmManual(repo, b.id, new Date(TUE_10.getTime() + 86_400_000))).outcome).toBe("blocked");
   });
+
+  it("blog: zet hem via create-blog-draft op de site en vult de swipe-stapel", async () => {
+    process.env.SITE_SUPABASE_URL = "https://site.supabase.co";
+    process.env.SITE_BLOG_SECRET = "geheim";
+    delete process.env.SITE_SUPABASE_SERVICE_ROLE_KEY;
+    fetchMock.mockResolvedValueOnce(new Response(JSON.stringify({ id: "post1", slug: "offerte-maken-met-ai" }), { status: 201 }));
+    const base = await linkedInPost();
+    const [blog] = await repo.createInboxItems([{
+      ...base, id: undefined, type: "blog", channel: "blog", status: "approved", title: "Offerte maken met AI",
+      payload: {
+        blog: { slug: "offerte-maken-met-ai", seo_title: "t", seo_description: "d", excerpt: "e", tags: ["AI"], primary_keyword: "offerte maken met ai", markdown: "Tekst" },
+        repurpose: { linkedin_hook: "Hook LI", carousel_hook: "Hook carrousel", newsletter_paragraph: "n" },
+      },
+    }]);
+    const before = (await repo.listIdeas(["new"])).length;
+    const out = await dispatchItem(repo, blog.id, TUE_10);
+    expect(out.outcome).toBe("sent");
+    const [url, init] = fetchMock.mock.calls[0];
+    expect(url).toBe("https://site.supabase.co/functions/v1/create-blog-draft");
+    expect(init.headers.authorization).toBe("Bearer geheim");
+    const sent = JSON.parse(init.body);
+    expect(sent).toMatchObject({ titel: "Offerte maken met AI", slug: "offerte-maken-met-ai", inhoud: "Tekst", seo_titel: "t" });
+    const ideas = await repo.listIdeas(["new"]);
+    expect(ideas.length).toBe(before + 2);
+    expect(ideas.some((i) => i.hook === "Hook carrousel" && i.tags.includes("blog"))).toBe(true);
+  });
+
+  it("blogbrief gaat nooit naar buiten", async () => {
+    const base = await linkedInPost();
+    const [brief] = await repo.createInboxItems([{ ...base, id: undefined, type: "brief", channel: "blog", status: "approved" }]);
+    expect((await dispatchItem(repo, brief.id, TUE_10)).outcome).toBe("blocked");
+    await dispatchDue(repo, TUE_10);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
 });

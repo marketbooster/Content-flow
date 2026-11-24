@@ -3,12 +3,15 @@ import type { Repo } from "./db/repo";
 import { dispatchDue } from "./dispatch/dispatcher";
 import { produceAsset, runCreatorIdeas } from "./agents/creator";
 import { AGENT_SCHEDULE } from "./agents/runner";
+import { runRankerBrief, runRankerLinkPitch } from "./agents/ranker";
 import { amsParts, startOfAmsDay, amsDayAt } from "./time";
 import type { AgentName } from "./types";
 
 /** Agents die in deze sprint gebouwd zijn. */
 const IMPLEMENTED: Partial<Record<AgentName, (repo: Repo) => Promise<unknown>>> = {
   creator: (repo) => runCreatorIdeas(repo, "cron"),
+  // ma: blogbrief · vr: linkkans (de weekdagen staan in AGENT_SCHEDULE)
+  ranker: (repo) => (amsParts(new Date()).weekday === 5 ? runRankerLinkPitch(repo, "cron") : runRankerBrief(repo, "cron")),
 };
 
 export function isDue(agent: AgentName, now: Date, lastCronRunToday: boolean): boolean {

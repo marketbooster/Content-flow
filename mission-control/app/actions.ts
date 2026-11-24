@@ -6,6 +6,7 @@ import { repo, requireOwner, serviceRepo } from "@/lib/db";
 import { confirmManual, dispatchItem } from "@/lib/dispatch/dispatcher";
 import { produceAsset, rewriteItem, runCreatorIdeas } from "@/lib/agents/creator";
 import { AgentBlocked } from "@/lib/agents/runner";
+import { runRankerBrief, runRankerLinkPitch, writeBlog } from "@/lib/agents/ranker";
 import { moveToDay, nextFreeSlot } from "@/lib/slots";
 import { nextSendWindowStart, normalizeKey } from "@/lib/guardrails";
 import { amsDayAt, startOfAmsDay } from "@/lib/time";
@@ -149,6 +150,30 @@ export async function bulkApprove(ids: string[]) {
   }
 }
 
+/** Blogbrief goedgekeurd: Ranker schrijft de volledige blog (gaat nog niet naar buiten). */
+export async function approveBrief(id: string) {
+  try {
+    await requireOwner();
+    const r = await repo();
+    const item = await r.getInboxItem(id);
+    if (!item || item.type !== "brief") throw new Error("Geen blogbrief");
+    await r.updateInboxItem(id, { status: "approved" });
+    after(async () => {
+      const s = serviceRepo();
+      try {
+        await writeBlog(s, item);
+        await s.updateInboxItem(id, { status: "sent", sent_at: new Date().toISOString(), result: { internal: "blog geschreven" } });
+      } catch (err) {
+        await s.updateInboxItem(id, { status: "pending", result: { error: err instanceof Error ? err.message : String(err) } });
+      }
+    });
+    refresh();
+    return ok();
+  } catch (e) {
+    return fail(e);
+  }
+}
+
 // ── Swipe-kalender ────────────────────────────────────────────────────
 
 export async function swipeIdea(id: string, direction: "right" | "left" | "up", reason?: string) {
@@ -249,12 +274,38 @@ export async function retryProduce(id: string) {
 export async function runAgentNow(agent: AgentName) {
   try {
     await requireOwner();
-    if (agent !== "creator") throw new Error("Deze agent wordt in een volgende sprint gebouwd.");
-    const run = await runCreatorIdeas(serviceRepo(), "manual");
+    let run;
+    if (agent === "creator") run = await runCreatorIdeas(serviceRepo(), "manual");
+    else if (agent === "ranker") run = await runRankerBrief(serviceRepo(), "manual");
+    else throw new Error("Deze agent wordt in een volgende sprint gebouwd.");
     refresh();
     return ok(run);
   } catch (e) {
     return fail(e instanceof AgentBlocked ? e : e);
+  }
+}
+
+export async function runRankerPitchNow() {
+  try {
+    await requireOwner();
+    const run = await runRankerLinkPitch(serviceRepo(), "manual");
+    refresh();
+    return ok(run);
+  } catch (e) {
+    return fail(e);
+  }
+}
+
+export async function addKeyword(keyword: string) {
+  try {
+    await requireOwner();
+    const k = keyword.trim().toLowerCase();
+    if (!k) throw new Error("Leeg");
+    await (await repo()).addKeyword(k);
+    refresh();
+    return ok();
+  } catch (e) {
+    return fail(e);
   }
 }
 

@@ -2,8 +2,8 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import type { AgentName, AgentRun, Brain, Channel, DispatchLog, Settings, Suppression } from "@/lib/types";
-import { addSuppression, runAgentNow, saveBrain, saveSettings } from "@/app/actions";
+import type { AgentName, AgentRun, Brain, Channel, DispatchLog, Keyword, Settings, Suppression } from "@/lib/types";
+import { addKeyword, addSuppression, runAgentNow, runRankerPitchNow, saveBrain, saveSettings } from "@/app/actions";
 import { SecondaryButton, StatusPill, TextButton } from "./ui";
 import { channelLabel } from "./channel";
 import { formatDayTime } from "@/lib/time";
@@ -32,6 +32,7 @@ export function ProfileClient(props: {
   connections: { name: string; ok: boolean; detail: string }[];
   log: DispatchLog[];
   suppression: Suppression[];
+  keywords: Keyword[];
 }) {
   const router = useRouter();
   const [pending, start] = useTransition();
@@ -112,8 +113,13 @@ export function ProfileClient(props: {
                   </p>
                   <div className="flex items-center gap-2">
                     <TextButton disabled={pending} onClick={() => act(() => runAgentNow(a.name), `${a.title} klaar`)}>
-                      {pending ? "Bezig…" : "Run nu"}
+                      {pending ? "Bezig…" : a.name === "ranker" ? "Blogbrief nu" : "Run nu"}
                     </TextButton>
+                    {a.name === "ranker" && (
+                      <TextButton disabled={pending} onClick={() => act(() => runRankerPitchNow(), "Linkkans klaar")}>
+                        Linkkans nu
+                      </TextButton>
+                    )}
                     <label className={`ml-auto flex min-h-11 items-center gap-2 ${a.testedManually ? "" : "opacity-40"}`}>
                       <input
                         type="checkbox"
@@ -132,6 +138,38 @@ export function ProfileClient(props: {
             </li>
           ))}
         </ul>
+      </section>
+
+      {/* SEO */}
+      <section className="flex flex-col gap-3">
+        <h2 className="t-card">Doelzoekwoorden</h2>
+        <p className="t-meta">
+          Waar wil je op gevonden worden? Ranker kiest hieruit (en uit je contentbank) tot Search Console gekoppeld is. Denk aan long-tail: taak + branche of
+          regio, bijv. &quot;offerte maken met ai&quot;, &quot;ai training zwolle&quot;.
+        </p>
+        <form
+          className="flex gap-2"
+          onSubmit={(e) => {
+            e.preventDefault();
+            const form = e.currentTarget;
+            const v = String(new FormData(form).get("kw") ?? "");
+            act(() => addKeyword(v), "Zoekwoord toegevoegd");
+            form.reset();
+          }}
+        >
+          <input name="kw" placeholder="zoekwoord" className="h-11 min-w-0 flex-1 rounded-[12px] border border-line bg-bg px-3" />
+          <TextButton type="submit">Toevoegen</TextButton>
+        </form>
+        {props.keywords.length > 0 && (
+          <ul className="flex flex-col gap-1">
+            {props.keywords.map((k) => (
+              <li key={k.id} className="flex justify-between gap-2">
+                <span>{k.keyword}</span>
+                <span className="t-num t-meta">{k.position !== null ? `pos. ${k.position}` : "doel"}</span>
+              </li>
+            ))}
+          </ul>
+        )}
       </section>
 
       {/* Merkbrein */}

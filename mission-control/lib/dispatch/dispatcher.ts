@@ -55,6 +55,7 @@ export async function dispatchItem(repo: Repo, id: string, now = new Date()): Pr
 
   const adapter = routeFor(item);
   if (adapter.kind === "manual") return { outcome: "waiting_manual", detail: "Wacht op jouw tik (1-tap)" };
+  if (adapter.kind === "internal") return { outcome: "blocked", detail: "Intern item, gaat niet naar buiten" };
 
   const decision = await guardFor(repo, item, now);
   if (decision.action === "block") {
@@ -83,6 +84,7 @@ export async function dispatchItem(repo: Repo, id: string, now = new Date()): Pr
     });
     await log(repo, item, adapter.id, "sent", res.detail, { id: res.externalId, url: res.externalUrl });
     if (item.calendar_id) await repo.updateCalendarEntry(item.calendar_id, { status: "posted" });
+    await afterSend(repo, item, res.externalUrl);
     return { outcome: "sent", detail: res.detail, externalUrl: res.externalUrl };
   } catch (err) {
     const detail = err instanceof Error ? err.message : String(err);
@@ -90,6 +92,18 @@ export async function dispatchItem(repo: Repo, id: string, now = new Date()): Pr
     await log(repo, item, adapter.id, "failed", detail);
     return { outcome: "failed", detail };
   }
+}
+
+/** Eén keer maken, drie keer inzetten: een gepubliceerde blog voedt de swipe-stapel. */
+async function afterSend(repo: Repo, item: InboxItem, url?: string) {
+  const rp = item.payload.repurpose;
+  if (item.type !== "blog" || !rp) return;
+  const pillar = "tijd terugwinnen";
+  const link = url && !url.includes("/admin/") ? ` (${url})` : "";
+  await repo.createIdeas([
+    { hook: rp.linkedin_hook, angle: `Post over de nieuwe blog${link}`, format: "post", channel: "linkedin", pillar, tags: ["blog"], status: "new", reject_reason: null, run_id: null },
+    { hook: rp.carousel_hook, angle: `Carrousel met de stappen uit de blog${link}`, format: "carousel", channel: "linkedin", pillar, tags: ["blog"], status: "new", reject_reason: null, run_id: null },
+  ]);
 }
 
 /** 1-tap: jij hebt geplakt en verstuurd in de andere app. Vangrails gelden nog steeds. */
@@ -118,7 +132,8 @@ export async function dispatchDue(repo: Repo, now = new Date()) {
   const results: { id: string; outcome: string }[] = [];
   for (const item of items) {
     if (item.send_after && new Date(item.send_after) > now) continue;
-    if (routeFor(item).kind === "manual") continue;
+    const kind = routeFor(item).kind;
+    if (kind === "manual" || kind === "internal") continue;
     const r = await dispatchItem(repo, item.id, now);
     results.push({ id: item.id, outcome: r.outcome });
   }
