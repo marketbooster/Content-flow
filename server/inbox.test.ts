@@ -65,3 +65,19 @@ describe("inbox voor geplande taken", () => {
     expect(stats.bySource.metapic.nieuw).toBe(1);
   });
 });
+
+describe("inbox via webadres (voor WebFetch)", () => {
+  const enc = (o: unknown) => Buffer.from(JSON.stringify(o)).toString("base64url");
+  it("voegt tips toe met sleutel in het adres", async () => {
+    const { app } = mk(TOKEN);
+    const r = await app.request(`/api/inbox/add?k=${TOKEN}&d=${enc({ source: "hema", items: [{ title: "Test: verbinding" }] })}`);
+    expect(r.status).toBe(200);
+    expect(await r.json()).toEqual({ added: 1, skipped: 0 });
+  });
+  it("weigert verkeerde sleutel, kapotte data en te grote batches", async () => {
+    const { app } = mk(TOKEN);
+    expect((await app.request(`/api/inbox/add?k=fout&d=${enc({ source: "hema", items: [{ title: "x y" }] })}`)).status).toBe(401);
+    expect((await app.request(`/api/inbox/add?k=${TOKEN}&d=@@@`)).status).toBe(400);
+    expect((await app.request(`/api/inbox/add?k=${TOKEN}&d=${"A".repeat(8001)}`)).status).toBe(413);
+  });
+});
