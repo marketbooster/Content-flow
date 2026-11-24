@@ -6,6 +6,7 @@ import { addDays, diffDays, formatNL } from "../domain/dates";
 import { dealSignals } from "../domain/deals";
 import { prepAlerts, relevanceFor } from "../domain/relevance";
 import { CONTENT_STATUSES, type ContentItem } from "../domain/types";
+import { SOURCE_INFO, useInbox } from "../state/inbox";
 import { useStore } from "../state/store";
 
 function greeting(now = new Date()) {
@@ -38,6 +39,8 @@ export default function TodayPage() {
   const atRisk = week.filter((c) => diffDays(today, c.date!) <= 2 && (c.status === "idee" || c.status === "script"));
   const signals = dealSignals(s.deals, content, today).filter((x) => x.severity === "let_op").slice(0, 3);
   const alerts = prepAlerts(events, occurrences, creator, today, new Set(s.seenAlerts)).slice(0, 2);
+  const inbox = useInbox();
+  const perSource = [...new Set(inbox.fresh.map((i) => i.source))].map((src) => ({ src, n: inbox.fresh.filter((i) => i.source === src).length }));
 
   return (
     <>
@@ -65,6 +68,17 @@ export default function TodayPage() {
         <QuickAction to="/opnamedag" icon="opname" label="Opnamedag" />
         <QuickAction to="/maandplanning" icon="plan" label="Maandplan" />
       </div>
+
+      {inbox.fresh.length > 0 && (
+        <Link to="/bord" className="mt-4 flex items-center gap-3 rounded-2xl border border-accent/40 bg-accent-soft p-4">
+          <span className="text-2xl" aria-hidden>📥</span>
+          <span className="min-w-0 flex-1">
+            <b>{inbox.fresh.length} nieuwe tip{inbox.fresh.length === 1 ? "" : "s"}</b>
+            <span className="block truncate text-sm text-muted">{perSource.map(({ src, n }) => `${SOURCE_INFO[src].emoji} ${n} ${SOURCE_INFO[src].label}`).join(" · ")}</span>
+          </span>
+          <span className="text-sm font-semibold text-accent">Bekijk →</span>
+        </Link>
+      )}
 
       <SectionTitle>Vandaag</SectionTitle>
       <div className="space-y-2">

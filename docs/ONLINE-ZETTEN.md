@@ -47,3 +47,12 @@ De AI-kosten (Anthropic en OpenAI) komen daar los bij. Zie de kostenraming in `A
 - **Je planning staat nog in je browser.** De server bewaart alleen de AI-kosten en AI-resultaten. Planning op je telefoon en je laptop is dus nog niet gedeeld; dat komt in fase 4 (Supabase).
 - **Iedereen met het wachtwoord** kan AI-tegoed gebruiken, tot aan het maandbudget. Deel het niet.
 - Start de server niet? Kijk in Railway bij **Deployments → Logs**. De meest voorkomende oorzaak is een ontbrekend of te kort `APP_PASSWORD`.
+
+## Inbox voor je geplande taken
+
+Je dagelijkse taken (Metapic-alert, HEMA viral, low kcal top 5, voorraadcheck, samenwerkingsreacties) kunnen hun tips naast de mail ook in ContentFlow afleveren. Ze komen dan in de kolom **Binnen** op het productiebord en als melding op **Vandaag**.
+
+1. Voeg in Railway onder **Variables** toe: `INBOX_TOKEN` = de sleutel die je van Claude kreeg (minimaal 24 tekens).
+2. Railway start de app opnieuw. Daarna nemen de taken hun tips mee.
+
+Deze sleutel kan alleen tips **afleveren**. Je planning lezen of iets anders doen kan er niet mee; daarvoor blijft je wachtwoord nodig. Wil je de sleutel ooit vervangen, pas hem dan in Railway én in de taken aan.

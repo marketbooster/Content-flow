@@ -76,6 +76,12 @@ export default function ContentPage() {
             </select>
           </label>
         </div>
+        <label className="block text-sm">Product- of actielink
+          <span className="flex gap-2">
+            <input id="c-link" type="url" className={field} value={c.link ?? ""} placeholder="https://…" onChange={(e) => set({ link: e.target.value || undefined })} />
+            {c.link && <a href={c.link} target="_blank" rel="noreferrer" className="mt-1 shrink-0 self-center text-sm font-semibold text-accent">Open ↗</a>}
+          </span>
+        </label>
         <label className="block text-sm">Omschrijving<textarea id="c-desc" rows={3} className={field} value={c.description ?? ""} onChange={(e) => set({ description: e.target.value })} /></label>
         <label className="block text-sm">Script<textarea id="c-script" rows={6} className={field} value={c.script ?? ""} onChange={(e) => set({ script: e.target.value })} /></label>
         <label className="block text-sm">Shotlist (één per regel)

@@ -4,6 +4,7 @@ import {
 } from "@dnd-kit/core";
 import { useState } from "react";
 import { Link } from "react-router-dom";
+import { InboxColumn } from "../components/InboxColumn";
 import { Badge, PageHeader, PillarChip, formatLabel } from "../components/ui";
 import { diffDays, formatNL } from "../domain/dates";
 import { CONTENT_STATUSES, type ContentItem, type ContentStatus } from "../domain/types";
@@ -35,7 +36,8 @@ export default function BoardPage() {
     <>
       <PageHeader kicker="Productie" title="Productiebord" sub="Sleep kaarten naar de volgende stap. Op je telefoon: even vasthouden en dan slepen." />
       <DndContext sensors={sensors} onDragStart={(e) => setActive(s.content.find((c) => c.id === e.active.id) ?? null)} onDragEnd={onDragEnd} onDragCancel={() => setActive(null)}>
-        <div className="-mx-4 flex snap-x snap-mandatory gap-3 overflow-x-auto px-4 pb-4 md:mx-0 md:grid md:grid-cols-5 md:overflow-visible md:px-0">
+        <div className="-mx-4 flex snap-x snap-mandatory gap-3 overflow-x-auto px-4 pb-4 md:mx-0 md:grid md:grid-cols-[1.4fr_repeat(5,minmax(0,1fr))] md:overflow-visible md:px-0">
+          <InboxColumn />
           {CONTENT_STATUSES.map((col, i) => (
             <Column key={col.id} id={col.id} label={col.label} items={byStatus(col.id)} next={CONTENT_STATUSES[i + 1]?.id}
               onAdvance={(id, to) => s.updateContent(id, { status: to })} today={s.today} />

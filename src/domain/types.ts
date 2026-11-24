@@ -250,10 +250,12 @@ export interface ContentItem {
   location?: ShootLocation;
   dealId?: string;
   briefing?: Briefing;
+  /** Product- of actielink (bv. om in Metapic om te zetten naar je eigen link). */
+  link?: string;
   hooks?: string[];
   hashtags?: string[];
   createdAt: string;
-  source: "handmatig" | "seasonal" | "maandplanning" | "ai" | "deal";
+  source: "handmatig" | "seasonal" | "maandplanning" | "ai" | "deal" | "inbox";
 }
 
 export type SwipeDecision = "bewaard" | "afgewezen";

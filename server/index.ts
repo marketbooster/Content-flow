@@ -12,6 +12,7 @@ import { createAnthropicProvider } from "./ai/providers/anthropic";
 import { createOpenAIProvider } from "./ai/providers/openai";
 import { ProviderError } from "./ai/providers/types";
 import { BriefingRequestSchema, BriefSchema, HookRequestSchema } from "./ai/schemas";
+import { Inbox, type InboxItem, InboxPost, sameToken } from "./inbox";
 
 try {
   process.loadEnvFile?.(".env");
@@ -29,14 +30,45 @@ function samePassword(a: string, b: string): boolean {
   return timingSafeEqual(ha, hb);
 }
 
-export function createApp(orchestrator: Orchestrator, limiter: RateLimiter, password?: string) {
+export function createApp(
+  orchestrator: Orchestrator, limiter: RateLimiter, password?: string,
+  inboxCfg?: { inbox: Inbox; token?: string },
+) {
   const app = new Hono();
 
   // Health check blijft open (voor de hostingdienst); al het andere achter het wachtwoord.
   app.get("/api/health", (c) => c.json({ ok: true }));
+
+  // Inbox voor geplande taken: eigen token (X-Inbox-Token), los van het app-wachtwoord.
+  // Deze routes staan vóór de wachtwoordcontrole, zodat de taken er zonder wachtwoord bij kunnen.
+  const inboxLimiter = new RateLimiter(30);
+  const tokenOk = (given?: string) => Boolean(inboxCfg?.token) && sameToken(given, inboxCfg!.token!);
+  app.post("/api/inbox", async (c) => {
+    if (!inboxCfg?.token) return c.json({ error: "Inbox is niet ingesteld (INBOX_TOKEN ontbreekt op de server)." }, 503);
+    if (!tokenOk(c.req.header("x-inbox-token"))) return c.json({ error: "Ongeldige inbox-sleutel." }, 401);
+    if (!inboxLimiter.allow("inbox")) return c.json({ error: "Te veel verzoeken." }, 429);
+    const parsed = InboxPost.safeParse(await c.req.json().catch(() => null));
+    if (!parsed.success) return c.json({ error: "Ongeldige tips", details: parsed.error.issues.slice(0, 5) }, 400);
+    return c.json(inboxCfg.inbox.add(parsed.data));
+  });
+  app.get("/api/inbox/stats", (c) => {
+    if (!inboxCfg?.token) return c.json({ error: "Inbox is niet ingesteld." }, 503);
+    if (!tokenOk(c.req.header("x-inbox-token"))) return c.json({ error: "Ongeldige inbox-sleutel." }, 401);
+    return c.json(inboxCfg.inbox.stats());
+  });
+
   if (password) {
     app.use("*", basicAuth({ verifyUser: (_user, pass) => samePassword(pass, password), realm: "ContentFlow" }));
   }
+  // Inbox lezen en afhandelen: alleen in de app (achter het wachtwoord).
+  app.get("/api/inbox", (c) => c.json({ configured: Boolean(inboxCfg?.token), items: inboxCfg?.inbox.list() ?? [] }));
+  app.patch("/api/inbox/:id", async (c) => {
+    const body = z.object({ status: z.enum(["nieuw", "opgepakt", "afgewezen"]) }).safeParse(await c.req.json().catch(() => null));
+    if (!body.success || !inboxCfg) return c.json({ error: "Ongeldig verzoek" }, 400);
+    const item: InboxItem | null = inboxCfg.inbox.setStatus(c.req.param("id"), body.data.status);
+    return item ? c.json(item) : c.json({ error: "Niet gevonden" }, 404);
+  });
+
   app.get("/api/ai/status", (c) => c.json(orchestrator.status()));
   app.get("/api/ai/jobs", (c) => c.json(orchestrator.listJobs()));
   app.get("/api/ai/jobs/:id", (c) => {
@@ -124,7 +156,14 @@ if (isMain) {
       maxTokens: 16000,
     },
   );
-  const app = createApp(orchestrator, new RateLimiter(Number(env.AI_REQUESTS_PER_MINUTE) || 10), password);
+  const inboxToken = env.INBOX_TOKEN?.trim();
+  if (inboxToken && inboxToken.length < 24) {
+    console.error("INBOX_TOKEN is te kort (minimaal 24 tekens). De inbox blijft uit.");
+  }
+  const app = createApp(orchestrator, new RateLimiter(Number(env.AI_REQUESTS_PER_MINUTE) || 10), password, {
+    inbox: new Inbox(fileStore<InboxItem[]>(join(dataDir, "inbox.json"), [])),
+    token: inboxToken && inboxToken.length >= 24 ? inboxToken : undefined,
+  });
   if (production) {
     app.use("/*", serveStatic({ root: "./dist" }));
     app.get("*", serveStatic({ path: "./dist/index.html" }));
