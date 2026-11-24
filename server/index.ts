@@ -51,24 +51,6 @@ export function createApp(
     if (!parsed.success) return c.json({ error: "Ongeldige tips", details: parsed.error.issues.slice(0, 5) }, 400);
     return c.json(inboxCfg.inbox.add(parsed.data));
   });
-  // Variant via een webadres (GET), voor taken die alleen pagina's kunnen ophalen (WebFetch).
-  // d = base64url van dezelfde JSON als bij POST; k = inbox-sleutel. Kleine batches (max. ~6 kB).
-  app.get("/api/inbox/add", (c) => {
-    if (!inboxCfg?.token) return c.json({ error: "Inbox is niet ingesteld." }, 503);
-    if (!tokenOk(c.req.query("k"))) return c.json({ error: "Ongeldige inbox-sleutel." }, 401);
-    if (!inboxLimiter.allow("inbox")) return c.json({ error: "Te veel verzoeken." }, 429);
-    const d = c.req.query("d") ?? "";
-    if (d.length > 8000) return c.json({ error: "Te veel tekst in één keer; stuur kleinere batches." }, 413);
-    let json: unknown = null;
-    try {
-      json = JSON.parse(Buffer.from(d, "base64url").toString("utf8"));
-    } catch {
-      return c.json({ error: "d is geen geldige base64url-JSON." }, 400);
-    }
-    const parsed = InboxPost.safeParse(json);
-    if (!parsed.success) return c.json({ error: "Ongeldige tips", details: parsed.error.issues.slice(0, 5) }, 400);
-    return c.json(inboxCfg.inbox.add(parsed.data));
-  });
   app.get("/api/inbox/stats", (c) => {
     if (!inboxCfg?.token) return c.json({ error: "Inbox is niet ingesteld." }, 503);
     if (!tokenOk(c.req.header("x-inbox-token"))) return c.json({ error: "Ongeldige inbox-sleutel." }, 401);
